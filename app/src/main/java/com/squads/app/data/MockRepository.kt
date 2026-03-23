@@ -5,7 +5,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Mock data repository — will be replaced by UniFFI SquadsClient calls.
+ * Mock data repository for demo mode.
  * Provides realistic sample data for all screens.
  */
 @Singleton

@@ -83,7 +83,7 @@ fun ProfileScreen(
             Text("Version 0.1.0", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(4.dp))
             Text(
-                "Powered by squads-core (Rust)",
+                "Squads for Android",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

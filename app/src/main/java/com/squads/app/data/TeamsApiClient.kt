@@ -342,7 +342,7 @@ class TeamsApiClient @Inject constructor(
         return result.reversed()
     }
 
-    /** Strip Teams API URL prefixes from sender ID (same as Rust strip_url_opt) */
+    /** Strip Teams API URL prefixes from sender ID */
     private fun stripSenderUrl(url: String): String {
         return url
             .removePrefix("https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/contacts/")

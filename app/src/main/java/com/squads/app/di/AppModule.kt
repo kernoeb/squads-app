@@ -16,7 +16,4 @@ object AppModule {
     @Singleton
     fun provideApplicationContext(@ApplicationContext context: Context): Context = context
 
-    // TODO: Provide SquadsClient (UniFFI) once native .so is built
-    // @Provides @Singleton
-    // fun provideSquadsClient(@ApplicationContext context: Context): SquadsClient { ... }
 }
