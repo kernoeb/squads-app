@@ -81,24 +81,28 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
             }
         }
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            // Group events by date
-            val grouped = events.groupBy { it.startTime.toLocalDate() }
-            grouped.forEach { (date, dayEvents) ->
-                item {
-                    Text(
-                        text = date.format(DateTimeFormatter.ofPattern("EEEE, MMM d")),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                    )
+        if (isLoading) {
+            LoadingScreen()
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                // Group events by date
+                val grouped = events.groupBy { it.startTime.toLocalDate() }
+                grouped.forEach { (date, dayEvents) ->
+                    item {
+                        Text(
+                            text = date.format(DateTimeFormatter.ofPattern("EEEE, MMM d")),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        )
+                    }
+                    items(dayEvents, key = { it.id }) { event ->
+                        EventCard(event = event, onClick = { viewModel.selectEvent(event) })
+                    }
                 }
-                items(dayEvents, key = { it.id }) { event ->
-                    EventCard(event = event, onClick = { viewModel.selectEvent(event) })
-                }
+                item { Spacer(Modifier.height(80.dp)) }
             }
-            item { Spacer(Modifier.height(80.dp)) }
         }
     }
 

@@ -39,12 +39,14 @@ import com.squads.app.ui.auth.LoginScreen
 import com.squads.app.ui.calendar.CalendarScreen
 import com.squads.app.ui.chats.ChatDetailScreen
 import com.squads.app.ui.chats.ChatsScreen
+import com.squads.app.ui.mail.MailDetailScreen
 import com.squads.app.ui.mail.MailScreen
 import com.squads.app.ui.profile.ProfileScreen
 import com.squads.app.ui.search.SearchScreen
 import com.squads.app.ui.teams.TeamsScreen
 import com.squads.app.viewmodel.AuthViewModel
 import com.squads.app.viewmodel.ChatsViewModel
+import com.squads.app.viewmodel.MailViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
@@ -104,6 +106,8 @@ private fun MainApp(authViewModel: AuthViewModel) {
     val showBottomBar = currentRoute in bottomNavItems.map { it.route } || currentRoute == "profile"
 
     val chatsViewModel: ChatsViewModel = hiltViewModel()
+    val mailViewModel: MailViewModel = hiltViewModel()
+    val selectedMail by mailViewModel.selectedMail.collectAsState()
     var showChatDetail by remember { mutableStateOf(false) }
     val hazeState = remember { HazeState() }
 
@@ -118,6 +122,12 @@ private fun MainApp(authViewModel: AuthViewModel) {
                 chatsViewModel.stopMessagePolling()
                 showChatDetail = false
             },
+        )
+    } else if (selectedMail != null) {
+        BackHandler { mailViewModel.clearSelection() }
+        MailDetailScreen(
+            mail = selectedMail!!,
+            onBack = { mailViewModel.clearSelection() },
         )
     } else {
         Scaffold(
@@ -175,7 +185,7 @@ private fun MainApp(authViewModel: AuthViewModel) {
                             onProfileClick = { navController.navigate("profile") },
                         )
                     }
-                    composable(Screen.Mail.route) { MailScreen() }
+                    composable(Screen.Mail.route) { MailScreen(viewModel = mailViewModel) }
                     composable(Screen.Calendar.route) { CalendarScreen() }
                     composable(Screen.Teams.route) { TeamsScreen() }
                     composable(Screen.Search.route) { SearchScreen() }

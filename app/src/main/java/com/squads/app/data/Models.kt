@@ -15,6 +15,8 @@ data class ChatConversation(
     val avatarUrl: String? = null,
     val memberCount: Int = 2,
     val memberId: String? = null, // Other person's objectId for 1:1 chats (used for photo lookup)
+    val memberIds: List<String> = emptyList(), // First 2 other members for group avatar
+    val memberNames: List<String> = emptyList(), // Names matching memberIds for fallback initials
 )
 
 data class ChatMessage(

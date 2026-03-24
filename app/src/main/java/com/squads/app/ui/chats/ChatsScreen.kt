@@ -32,6 +32,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.ChatConversation
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
+import com.squads.app.ui.components.GroupAvatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.UnreadBadge
 import com.squads.app.viewmodel.ChatsViewModel
@@ -76,6 +77,7 @@ fun ChatsScreen(
             ChatRow(
                 chat = chat,
                 photo = chat.memberId?.let { photos[it] },
+                groupPhotos = chat.memberIds.map { photos[it] },
                 onClick = {
                     viewModel.selectChat(chat)
                     onChatClick(chat)
@@ -94,6 +96,7 @@ fun ChatsScreen(
 private fun ChatRow(
     chat: ChatConversation,
     photo: ImageBitmap? = null,
+    groupPhotos: List<ImageBitmap?> = emptyList(),
     onClick: () -> Unit,
 ) {
     Row(
@@ -104,11 +107,18 @@ private fun ChatRow(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Avatar(
-            name = chat.title,
-            isGroup = !chat.isOneOnOne,
-            photo = photo,
-        )
+        if (!chat.isOneOnOne && chat.memberIds.size >= 2) {
+            GroupAvatar(
+                names = chat.memberNames,
+                photos = groupPhotos,
+            )
+        } else {
+            Avatar(
+                name = chat.title,
+                isGroup = !chat.isOneOnOne,
+                photo = photo,
+            )
+        }
 
         Spacer(Modifier.width(14.dp))
 

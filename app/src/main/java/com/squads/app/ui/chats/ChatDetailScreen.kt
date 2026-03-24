@@ -93,6 +93,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.toTimeString
 import com.squads.app.ui.components.Avatar
+import com.squads.app.ui.components.GroupAvatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip
 import com.squads.app.viewmodel.ChatsViewModel
@@ -132,7 +133,8 @@ fun ChatDetailScreen(
         snapshotFlow {
             listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String }
         }.distinctUntilChanged().collect { visibleKeys ->
-            val visibleMsgs = messages.filter { it.id in visibleKeys }
+            val currentMessages = viewModel.messages.value
+            val visibleMsgs = currentMessages.filter { it.id in visibleKeys }
             if (visibleMsgs.isNotEmpty()) {
                 viewModel.loadDataForMessages(visibleMsgs)
             }
@@ -147,12 +149,20 @@ fun ChatDetailScreen(
                 title = {
                     if (currentChat != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Avatar(
-                                name = currentChat.title,
-                                size = 36.dp,
-                                isGroup = !currentChat.isOneOnOne,
-                                photo = currentChat.memberId?.let { photos[it] },
-                            )
+                            if (!currentChat.isOneOnOne && currentChat.memberIds.size >= 2) {
+                                GroupAvatar(
+                                    names = currentChat.memberNames,
+                                    size = 36.dp,
+                                    photos = currentChat.memberIds.map { photos[it] },
+                                )
+                            } else {
+                                Avatar(
+                                    name = currentChat.title,
+                                    size = 36.dp,
+                                    isGroup = !currentChat.isOneOnOne,
+                                    photo = currentChat.memberId?.let { photos[it] },
+                                )
+                            }
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(

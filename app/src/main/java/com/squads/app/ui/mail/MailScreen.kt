@@ -20,6 +20,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -42,13 +43,12 @@ import com.squads.app.viewmodel.MailViewModel
 @Composable
 fun MailScreen(viewModel: MailViewModel = hiltViewModel()) {
     val messages by viewModel.messages.collectAsState()
-    val selectedMail by viewModel.selectedMail.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    when {
-        selectedMail != null -> MailDetailScreen(mail = selectedMail!!, onBack = { viewModel.clearSelection() })
-        isLoading && messages.isEmpty() -> LoadingScreen()
-        else -> MailListScreen(messages = messages, onMailClick = { viewModel.selectMail(it) })
+    if (isLoading && messages.isEmpty()) {
+        LoadingScreen()
+    } else {
+        MailListScreen(messages = messages, onMailClick = { viewModel.selectMail(it) })
     }
 }
 
@@ -161,28 +161,30 @@ private fun MailRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MailDetailScreen(
+fun MailDetailScreen(
     mail: MailMessage,
     onBack: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {},
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-        )
-
-        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Text(
-                mail.subject,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(mail.subject, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
             )
-
-            Spacer(Modifier.height(16.dp))
+        },
+    ) { innerPadding ->
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 20.dp),
+        ) {
+            Spacer(Modifier.height(8.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Avatar(name = mail.fromName, size = 40.dp)

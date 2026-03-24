@@ -88,7 +88,7 @@ class ChatsViewModel
                 try {
                     val (chats, _) = api.getUserDetails()
                     _chats.value = chats
-                    loadPhotosForIds(chats.mapNotNull { if (it.isOneOnOne) it.memberId else null })
+                    loadPhotosForChats(chats)
                 } catch (e: Exception) {
                     _error.value = e.message
                 } finally {
@@ -107,7 +107,7 @@ class ChatsViewModel
                             val (chats, _) = api.getUserDetails()
                             if (chats != _chats.value) {
                                 _chats.value = chats
-                                loadPhotosForIds(chats.mapNotNull { if (it.isOneOnOne) it.memberId else null })
+                                loadPhotosForChats(chats)
                             }
                         } catch (_: Exception) {
                         }
@@ -117,6 +117,7 @@ class ChatsViewModel
 
         fun selectChat(chat: ChatConversation) {
             _selectedChat.value = chat
+            _messages.value = emptyList()
             _messagesLoading.value = true
             viewModelScope.launch {
                 try {
@@ -220,6 +221,13 @@ class ChatsViewModel
 
         private fun loadMessageImages(messages: List<ChatMessage>) {
             loadBitmaps(messages.flatMap { it.imageUrls }, _messageImages) { api.fetchImage(it) }
+        }
+
+        private fun loadPhotosForChats(chats: List<ChatConversation>) {
+            val ids =
+                chats.mapNotNull { if (it.isOneOnOne) it.memberId else null } +
+                    chats.flatMap { it.memberIds }
+            loadPhotosForIds(ids)
         }
 
         private fun loadPhotosForIds(userIds: List<String>) {

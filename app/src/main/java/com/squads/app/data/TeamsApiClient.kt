@@ -287,18 +287,33 @@ class TeamsApiClient
                     val members = c.optJSONArray("members") ?: JSONArray()
                     val isOneOnOne = c.optBoolean("isOneOnOne", false)
                     val lastMsg = c.optJSONObject("lastMessage")
+                    val otherMemberIds =
+                        if (!isOneOnOne) {
+                            findOtherMemberIds(members, myUserId, 2)
+                        } else {
+                            emptyList()
+                        }
 
                     ChatConversation(
                         id = c.optString("id"),
                         title = getChatDisplayName(c, members, myUserId),
-                        lastMessage = lastMsg?.let { HtmlParser.parseMessage(it.str("content")).text } ?: "",
+                        lastMessage = lastMsg?.let { formatLastMessage(it) } ?: "",
                         lastMessageTime = parseLastMessageTime(c, lastMsg),
                         isOneOnOne = isOneOnOne,
                         isUnread = !c.optBoolean("isRead", true),
                         memberCount = members.length(),
                         memberId = if (isOneOnOne) findOtherMemberId(members, myUserId) else null,
+                        memberIds = otherMemberIds,
+                        memberNames = otherMemberIds.map { userNameCache[it] ?: "?" },
                     )
                 }.sortedByDescending { it.lastMessageTime }
+
+        private fun formatLastMessage(msg: JSONObject): String {
+            val parsed = HtmlParser.parseMessage(msg.str("content"))
+            if (parsed.text.isNotBlank()) return parsed.text
+            if (parsed.imageUrls.isNotEmpty()) return "Sent a photo"
+            return ""
+        }
 
         private fun parseLastMessageTime(
             chat: JSONObject,
@@ -316,14 +331,21 @@ class TeamsApiClient
             return parseTimestamp(chat.str("lastJoinAt").ifEmpty { chat.str("createdAt") })
         }
 
-        private fun findOtherMemberId(
+        private fun findOtherMemberIds(
             members: JSONArray,
             myUserId: String,
-        ): String? =
+            limit: Int,
+        ): List<String> =
             members
                 .objects()
                 .map { it.str("objectId") }
-                .firstOrNull { it.isNotEmpty() && it != myUserId }
+                .filter { it.isNotEmpty() && it != myUserId }
+                .take(limit)
+
+        private fun findOtherMemberId(
+            members: JSONArray,
+            myUserId: String,
+        ): String? = findOtherMemberIds(members, myUserId, 1).firstOrNull()
 
         private fun getChatDisplayName(
             chat: JSONObject,
