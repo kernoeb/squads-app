@@ -73,6 +73,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -95,6 +96,7 @@ import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip
 import com.squads.app.viewmodel.ChatsViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -122,6 +124,18 @@ fun ChatDetailScreen(
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty() && listState.firstVisibleItemIndex <= 3) {
             listState.animateScrollToItem(0)
+        }
+    }
+
+    // Lazy-load photos and images for visible messages
+    LaunchedEffect(Unit) {
+        snapshotFlow {
+            listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String }
+        }.distinctUntilChanged().collect { visibleKeys ->
+            val visibleMsgs = messages.filter { it.id in visibleKeys }
+            if (visibleMsgs.isNotEmpty()) {
+                viewModel.loadDataForMessages(visibleMsgs)
+            }
         }
     }
 
