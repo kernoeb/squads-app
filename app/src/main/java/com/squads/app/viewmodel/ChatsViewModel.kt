@@ -133,16 +133,6 @@ class ChatsViewModel
             startMessagePolling(chat.id)
         }
 
-        private suspend fun refreshMessages(chatId: String) {
-            try {
-                val fresh = api.getChatMessages(chatId)
-                _messages.value = mergeWithOptimistic(fresh)
-                loadPhotosForIds(fresh.map { it.senderObjectId })
-                loadMessageImages(fresh)
-            } catch (_: Exception) {
-            }
-        }
-
         private fun mergeWithOptimistic(server: List<ChatMessage>): List<ChatMessage> {
             val pending = _messages.value.filter { it.id.startsWith("local-") }
             if (pending.isEmpty()) return server
@@ -206,12 +196,22 @@ class ChatsViewModel
                 )
             _messages.value = _messages.value + newMsg
 
+            _chats.update { chats ->
+                chats.map {
+                    if (it.id == chatId) {
+                        it.copy(
+                            lastMessage = content,
+                            lastMessageTime = java.time.LocalDateTime.now(),
+                        )
+                    } else {
+                        it
+                    }
+                }
+            }
+
             viewModelScope.launch {
                 try {
                     api.sendMessage(chatId, content)
-                    // Re-fetch to get server-confirmed message
-                    delay(500)
-                    refreshMessages(chatId)
                 } catch (e: Exception) {
                     _error.value = "Failed to send: ${e.message}"
                 }
