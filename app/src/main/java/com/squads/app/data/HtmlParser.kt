@@ -4,11 +4,12 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.TextNode
 
-private val EMOJI_IMG_DOMAINS = setOf(
-    "statics.teams.cdn.office.net",
-    "statics.teams.microsoft.com",
-    "emojipedia-us.s3.amazonaws.com",
-)
+private val EMOJI_IMG_DOMAINS =
+    setOf(
+        "statics.teams.cdn.office.net",
+        "statics.teams.microsoft.com",
+        "emojipedia-us.s3.amazonaws.com",
+    )
 
 data class ParsedMessage(
     val text: String,
@@ -18,7 +19,6 @@ data class ParsedMessage(
 )
 
 object HtmlParser {
-
     fun parseMessage(html: String): ParsedMessage {
         if (html.isBlank()) return ParsedMessage("", emptyList())
         val doc = Jsoup.parse(html)
@@ -34,17 +34,21 @@ object HtmlParser {
             reply.remove()
         }
 
-        val imageUrls = doc.select("img[src]")
-            .map { it.attr("src") }
-            .filter { it.startsWith("https://") }
+        val imageUrls =
+            doc
+                .select("img[src]")
+                .map { it.attr("src") }
+                .filter { it.startsWith("https://") }
 
         doc.select("img").remove()
         doc.select("br").forEach { it.replaceWith(TextNode("\n")) }
         doc.select("div, p, li").forEach { it.prepend("\n") }
 
-        val text = doc.text()
-            .replace(Regex("\n{3,}"), "\n\n")
-            .trim()
+        val text =
+            doc
+                .text()
+                .replace(Regex("\n{3,}"), "\n\n")
+                .trim()
 
         return ParsedMessage(text, imageUrls, replyToName, replyToPreview)
     }
@@ -72,7 +76,10 @@ object HtmlParser {
         }
     }
 
-    private fun isEmojiImage(url: String, img: org.jsoup.nodes.Element): Boolean {
+    private fun isEmojiImage(
+        url: String,
+        img: org.jsoup.nodes.Element,
+    ): Boolean {
         if (img.attr("itemtype") == "http://schema.skype.com/Emoji") return true
         if (EMOJI_IMG_DOMAINS.any { url.contains(it) }) return true
         if (url.contains("/emoticons/") || url.contains("/emoji/")) return true

@@ -52,51 +52,56 @@ fun ChatsScreen(
     }
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Chats",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Chats",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                IconButton(onClick = onProfileClick) {
+                    Icon(
+                        Icons.Default.AccountCircle,
+                        contentDescription = "Profile",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    IconButton(onClick = onProfileClick) {
-                        Icon(
-                            Icons.Default.AccountCircle,
-                            contentDescription = "Profile",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
                 }
             }
-            items(chats, key = { it.id }) { chat ->
-                ChatRow(
-                    chat = chat,
-                    photo = chat.memberId?.let { photos[it] },
-                    onClick = {
-                        viewModel.selectChat(chat)
-                        onChatClick(chat)
-                    },
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(start = 76.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                )
-            }
-            item { Spacer(Modifier.height(80.dp)) }
+        }
+        items(chats, key = { it.id }) { chat ->
+            ChatRow(
+                chat = chat,
+                photo = chat.memberId?.let { photos[it] },
+                onClick = {
+                    viewModel.selectChat(chat)
+                    onChatClick(chat)
+                },
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 76.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+            )
+        }
+        item { Spacer(Modifier.height(80.dp)) }
     }
 }
 
 @Composable
-private fun ChatRow(chat: ChatConversation, photo: ImageBitmap? = null, onClick: () -> Unit) {
+private fun ChatRow(
+    chat: ChatConversation,
+    photo: ImageBitmap? = null,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Avatar(
@@ -125,8 +130,12 @@ private fun ChatRow(chat: ChatConversation, photo: ImageBitmap? = null, onClick:
                 Text(
                     text = chat.lastMessageTime.toRelativeTime(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (chat.isUnread) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color =
+                        if (chat.isUnread) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                 )
             }
 

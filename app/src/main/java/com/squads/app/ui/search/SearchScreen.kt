@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
@@ -55,10 +55,11 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
             placeholder = { Text("Search chats, mail, calendar...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = MaterialTheme.shapes.large,
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            ),
+            colors =
+                OutlinedTextFieldDefaults.colors(
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                ),
             singleLine = true,
         )
 
@@ -112,16 +113,18 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
 
 @Composable
 private fun SearchResultRow(result: SearchResult) {
-    val icon = when (result.type) {
-        SearchResultType.CHAT -> Icons.AutoMirrored.Filled.Chat
-        SearchResultType.MAIL -> Icons.Default.Email
-        SearchResultType.CALENDAR -> Icons.Default.CalendarMonth
-    }
-    val typeLabel = when (result.type) {
-        SearchResultType.CHAT -> "Chat"
-        SearchResultType.MAIL -> "Mail"
-        SearchResultType.CALENDAR -> "Event"
-    }
+    val icon =
+        when (result.type) {
+            SearchResultType.CHAT -> Icons.AutoMirrored.Filled.Chat
+            SearchResultType.MAIL -> Icons.Default.Email
+            SearchResultType.CALENDAR -> Icons.Default.CalendarMonth
+        }
+    val typeLabel =
+        when (result.type) {
+            SearchResultType.CHAT -> "Chat"
+            SearchResultType.MAIL -> "Mail"
+            SearchResultType.CALENDAR -> "Event"
+        }
 
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),

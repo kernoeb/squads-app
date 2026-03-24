@@ -19,20 +19,26 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun UnreadBadge(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
-            .size(10.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
+        modifier =
+            modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
     )
 }
 
 @Composable
-fun ReactionChip(emoji: String, count: Int, modifier: Modifier = Modifier) {
+fun ReactionChip(
+    emoji: String,
+    count: Int,
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = modifier
-            .clip(MaterialTheme.shapes.small)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier =
+            modifier
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -44,13 +50,17 @@ fun ReactionChip(emoji: String, count: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun ImportanceBadge(importance: String, modifier: Modifier = Modifier) {
+fun ImportanceBadge(
+    importance: String,
+    modifier: Modifier = Modifier,
+) {
     if (importance != "high") return
     Box(
-        modifier = modifier
-            .clip(MaterialTheme.shapes.extraSmall)
-            .background(Color(0xFFD13438))
-            .padding(horizontal = 6.dp, vertical = 2.dp),
+        modifier =
+            modifier
+                .clip(MaterialTheme.shapes.extraSmall)
+                .background(Color(0xFFD13438))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
     ) {
         Text("!", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }

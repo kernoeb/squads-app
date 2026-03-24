@@ -37,6 +37,14 @@ run: install
 lint:
     ./gradlew lintDebug
 
+# Run ktlint code style check
+ktlint:
+    ./gradlew ktlintCheck
+
+# Auto-format code with ktlint
+format:
+    ./gradlew ktlintFormat
+
 # Run unit tests
 test:
     ./gradlew testDebugUnitTest

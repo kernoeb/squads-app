@@ -50,21 +50,30 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 
-sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
+sealed class Screen(
+    val route: String,
+    val label: String,
+    val icon: ImageVector,
+) {
     data object Chats : Screen("chats", "Chats", Icons.AutoMirrored.Filled.Chat)
+
     data object Mail : Screen("mail", "Mail", Icons.Default.Email)
+
     data object Calendar : Screen("calendar", "Calendar", Icons.Default.CalendarMonth)
+
     data object Teams : Screen("teams", "Teams", Icons.Default.Groups)
+
     data object Search : Screen("search", "Search", Icons.Default.Search)
 }
 
-private val bottomNavItems = listOf(
-    Screen.Chats,
-    Screen.Mail,
-    Screen.Calendar,
-    Screen.Teams,
-    Screen.Search,
-)
+private val bottomNavItems =
+    listOf(
+        Screen.Chats,
+        Screen.Mail,
+        Screen.Calendar,
+        Screen.Teams,
+        Screen.Search,
+    )
 
 @Composable
 fun SquadsApp(authViewModel: AuthViewModel = hiltViewModel()) {
@@ -117,10 +126,11 @@ private fun MainApp(authViewModel: AuthViewModel) {
                 val hazeStyle = CupertinoMaterials.regular()
                 NavigationBar(
                     containerColor = Color.Transparent,
-                    modifier = Modifier.hazeEffect(
-                        state = hazeState,
-                        style = hazeStyle,
-                    ),
+                    modifier =
+                        Modifier.hazeEffect(
+                            state = hazeState,
+                            style = hazeStyle,
+                        ),
                 ) {
                     bottomNavItems.forEach { screen ->
                         NavigationBarItem(
@@ -137,19 +147,21 @@ private fun MainApp(authViewModel: AuthViewModel) {
                                     restoreState = true
                                 }
                             },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                            ),
+                            colors =
+                                NavigationBarItemDefaults.colors(
+                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                ),
                         )
                     }
                 }
             },
         ) { innerPadding ->
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .hazeSource(state = hazeState)
-                    .padding(top = innerPadding.calculateTopPadding()),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .hazeSource(state = hazeState)
+                        .padding(top = innerPadding.calculateTopPadding()),
             ) {
                 NavHost(
                     navController = navController,

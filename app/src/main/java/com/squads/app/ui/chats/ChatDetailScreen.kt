@@ -5,12 +5,12 @@ import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -29,17 +29,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -49,7 +48,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,9 +76,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -90,7 +88,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.toTimeString
@@ -152,8 +149,11 @@ fun ChatDetailScreen(
                                     fontWeight = FontWeight.SemiBold,
                                 )
                                 Text(
-                                    if (currentChat.isOneOnOne) "Chat"
-                                    else "${currentChat.memberCount} members",
+                                    if (currentChat.isOneOnOne) {
+                                        "Chat"
+                                    } else {
+                                        "${currentChat.memberCount} members"
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -171,19 +171,20 @@ fun ChatDetailScreen(
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets.exclude(WindowInsets.ime),
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .imePadding(),
         ) {
             if (messagesLoading && messages.isEmpty()) {
                 LoadingScreen(Modifier.weight(1f))
             } else if (messages.isEmpty()) {
-
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                     contentAlignment = Alignment.Center,
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -205,9 +206,10 @@ fun ChatDetailScreen(
 
                 Box(modifier = Modifier.weight(1f)) {
                     LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp),
                         state = listState,
                         reverseLayout = true,
                         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -218,12 +220,14 @@ fun ChatDetailScreen(
                             val prevMsg = reversedMessages.getOrNull(index + 1) // older message (above)
                             val nextMsg = reversedMessages.getOrNull(index - 1) // newer message (below)
 
-                            val isFirstInGroup = prevMsg == null
-                                || prevMsg.senderId != msg.senderId
-                                || prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()
+                            val isFirstInGroup =
+                                prevMsg == null ||
+                                    prevMsg.senderId != msg.senderId ||
+                                    prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()
 
-                            val isLastInGroup = nextMsg == null
-                                || nextMsg.senderId != msg.senderId
+                            val isLastInGroup =
+                                nextMsg == null ||
+                                    nextMsg.senderId != msg.senderId
 
                             // Date separator — show when the date changes
                             if (prevMsg != null && prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()) {
@@ -253,21 +257,22 @@ fun ChatDetailScreen(
                         item { Spacer(Modifier.height(8.dp)) }
                     }
 
-
                     androidx.compose.animation.AnimatedVisibility(
                         visible = showScrollToBottom,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(16.dp),
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp),
                         enter = fadeIn() + scaleIn(),
                         exit = fadeOut() + scaleOut(),
                     ) {
                         SmallFloatingActionButton(
                             onClick = { scope.launch { listState.animateScrollToItem(0) } },
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            elevation = FloatingActionButtonDefaults.elevation(
-                                defaultElevation = 3.dp,
-                            ),
+                            elevation =
+                                FloatingActionButtonDefaults.elevation(
+                                    defaultElevation = 3.dp,
+                                ),
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
@@ -278,7 +283,6 @@ fun ChatDetailScreen(
                     }
                 }
             }
-
 
             MessageInput(
                 value = inputText,
@@ -311,56 +315,59 @@ private fun ImageViewer(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
 
-    val transformableState = rememberTransformableState { zoomChange, panChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 5f)
-        if (scale > 1f) {
-            offsetX += panChange.x
-            offsetY += panChange.y
-        } else {
-            offsetX = 0f
-            offsetY = 0f
+    val transformableState =
+        rememberTransformableState { zoomChange, panChange, _ ->
+            scale = (scale * zoomChange).coerceIn(1f, 5f)
+            if (scale > 1f) {
+                offsetX += panChange.x
+                offsetY += panChange.y
+            } else {
+                offsetX = 0f
+                offsetY = 0f
+            }
         }
-    }
 
     BackHandler(onBack = onDismiss)
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.95f))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss,
-            ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.95f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Image(
             bitmap = image,
             contentDescription = "Full screen image",
             contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(
-                    scaleX = scale,
-                    scaleY = scale,
-                    translationX = offsetX,
-                    translationY = offsetY,
-                )
-                .transformable(state = transformableState)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offsetX,
+                        translationY = offsetY,
+                    ).transformable(state = transformableState)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
         )
 
         IconButton(
             onClick = onDismiss,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(8.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(8.dp),
         ) {
             Icon(
                 Icons.Default.Close,
@@ -377,16 +384,18 @@ private fun DateSeparator(date: LocalDate) {
     val today = LocalDate.now()
     val yesterday = today.minusDays(1)
 
-    val label = when (date) {
-        today -> "Today"
-        yesterday -> "Yesterday"
-        else -> date.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
-    }
+    val label =
+        when (date) {
+            today -> "Today"
+            yesterday -> "Yesterday"
+            else -> date.format(DateTimeFormatter.ofPattern("EEEE, MMM d"))
+        }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -408,9 +417,10 @@ private fun MessageInput(
         tonalElevation = 2.dp,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 8.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
             TextField(
@@ -424,12 +434,13 @@ private fun MessageInput(
                     )
                 },
                 shape = RoundedCornerShape(24.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
+                colors =
+                    TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
                 maxLines = 5,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
                 keyboardActions = KeyboardActions.Default,
@@ -437,15 +448,24 @@ private fun MessageInput(
             Spacer(Modifier.width(6.dp))
             SmallFloatingActionButton(
                 onClick = onSend,
-                containerColor = if (value.isNotBlank()) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = if (value.isNotBlank()) MaterialTheme.colorScheme.onPrimary
-                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                containerColor =
+                    if (value.isNotBlank()) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    },
+                contentColor =
+                    if (value.isNotBlank()) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    },
                 shape = CircleShape,
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 0.dp,
-                    pressedElevation = 0.dp,
-                ),
+                elevation =
+                    FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp,
+                    ),
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.Send,
@@ -476,22 +496,22 @@ private fun MessageRow(
     val context = LocalContext.current
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = {},
-                onLongClick = {
-                    clipboardManager.setText(AnnotatedString(msg.content))
-                    Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
-                },
-            )
-            .padding(
-                start = 16.dp, end = 16.dp,
-                top = if (isFirstInGroup) 10.dp else 1.dp,
-                bottom = 1.dp,
-            ),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        clipboardManager.setText(AnnotatedString(msg.content))
+                        Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
+                    },
+                ).padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = if (isFirstInGroup) 10.dp else 1.dp,
+                    bottom = 1.dp,
+                ),
     ) {
-
         Box(modifier = Modifier.width(40.dp)) {
             if (isFirstInGroup) {
                 Avatar(
@@ -505,7 +525,6 @@ private fun MessageRow(
         Spacer(Modifier.width(10.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-
             if (isFirstInGroup) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -515,8 +534,12 @@ private fun MessageRow(
                         if (msg.isFromMe) "You" else msg.senderName,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (msg.isFromMe) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurface,
+                        color =
+                            if (msg.isFromMe) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                     )
                     Text(
                         msg.timestamp.toTimeString(),
@@ -527,22 +550,23 @@ private fun MessageRow(
                 Spacer(Modifier.height(2.dp))
             }
 
-
             if (msg.replyToName != null) {
                 Row(
-                    modifier = Modifier
-                        .padding(bottom = 4.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    modifier =
+                        Modifier
+                            .padding(bottom = 4.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .width(3.dp)
-                            .height(28.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(MaterialTheme.colorScheme.primary),
+                        modifier =
+                            Modifier
+                                .width(3.dp)
+                                .height(28.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.primary),
                     )
                     Spacer(Modifier.width(8.dp))
                     Column {
@@ -565,27 +589,28 @@ private fun MessageRow(
                 }
             }
 
-
             msg.imageUrls.forEach { url ->
                 val image = messageImages[url]
                 if (image != null) {
                     Image(
                         bitmap = image,
                         contentDescription = "Image",
-                        modifier = Modifier
-                            .widthIn(max = 350.dp)
-                            .padding(vertical = 4.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onImageClick(image) },
+                        modifier =
+                            Modifier
+                                .widthIn(max = 350.dp)
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onImageClick(image) },
                         contentScale = ContentScale.FillWidth,
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .size(width = 200.dp, height = 100.dp)
-                            .padding(vertical = 4.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        modifier =
+                            Modifier
+                                .size(width = 200.dp, height = 100.dp)
+                                .padding(vertical = 4.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
@@ -596,13 +621,14 @@ private fun MessageRow(
                 }
             }
 
-
             if (msg.content.isNotBlank()) {
                 val rawHtml = msg.contentHtml.ifEmpty { msg.content }
                 if (rawHtml.contains('<') && rawHtml.contains('>')) {
-                    val cleanedHtml = remember(rawHtml) {
-                        com.squads.app.data.HtmlParser.cleanForRendering(rawHtml)
-                    }
+                    val cleanedHtml =
+                        remember(rawHtml) {
+                            com.squads.app.data.HtmlParser
+                                .cleanForRendering(rawHtml)
+                        }
                     AndroidView(
                         factory = { ctx ->
                             TextView(ctx).apply {
@@ -613,15 +639,17 @@ private fun MessageRow(
                             }
                         },
                         update = { textView ->
-                            val spanned = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_COMPACT)
-                            } else {
-                                @Suppress("DEPRECATION")
-                                Html.fromHtml(cleanedHtml)
-                            }
-                            textView.text = spanned.toString().trimEnd().let { trimmed ->
-                                spanned.subSequence(0, trimmed.length)
-                            }
+                            val spanned =
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                    Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_COMPACT)
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    Html.fromHtml(cleanedHtml)
+                                }
+                            textView.text =
+                                spanned.toString().trimEnd().let { trimmed ->
+                                    spanned.subSequence(0, trimmed.length)
+                                }
                             textView.setTextColor(textColorArgb)
                             textView.setLinkTextColor(linkColorArgb)
                         },

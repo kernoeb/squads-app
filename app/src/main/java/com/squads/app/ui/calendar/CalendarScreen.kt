@@ -17,8 +17,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -114,19 +114,24 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
-    val responseColor = when (event.responseStatus) {
-        "accepted" -> Color(0xFF107C10)
-        "tentative" -> Color(0xFFFFB900)
-        "declined" -> Color(0xFFD13438)
-        else -> MaterialTheme.colorScheme.outline
-    }
+private fun EventCard(
+    event: CalendarEvent,
+    onClick: () -> Unit,
+) {
+    val responseColor =
+        when (event.responseStatus) {
+            "accepted" -> Color(0xFF107C10)
+            "tentative" -> Color(0xFFFFB900)
+            "declined" -> Color(0xFFD13438)
+            else -> MaterialTheme.colorScheme.outline
+        }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Top,
     ) {
         // Time column
@@ -150,11 +155,12 @@ private fun EventCard(event: CalendarEvent, onClick: () -> Unit) {
 
         // Color indicator
         Box(
-            modifier = Modifier
-                .width(4.dp)
-                .height(48.dp)
-                .clip(MaterialTheme.shapes.small)
-                .background(responseColor),
+            modifier =
+                Modifier
+                    .width(4.dp)
+                    .height(48.dp)
+                    .clip(MaterialTheme.shapes.small)
+                    .background(responseColor),
         )
 
         Spacer(Modifier.width(12.dp))
@@ -229,17 +235,18 @@ private fun EventDetailSheet(event: CalendarEvent) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(
-                                when (attendee.response) {
-                                    "accepted" -> Color(0xFF107C10)
-                                    "tentative" -> Color(0xFFFFB900)
-                                    "declined" -> Color(0xFFD13438)
-                                    else -> Color.Gray
-                                },
-                            ),
+                        modifier =
+                            Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    when (attendee.response) {
+                                        "accepted" -> Color(0xFF107C10)
+                                        "tentative" -> Color(0xFFFFB900)
+                                        "declined" -> Color(0xFFD13438)
+                                        else -> Color.Gray
+                                    },
+                                ),
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(attendee.name, style = MaterialTheme.typography.bodyMedium)
@@ -258,7 +265,10 @@ private fun EventDetailSheet(event: CalendarEvent) {
 }
 
 @Composable
-private fun DetailRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+private fun DetailRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    text: String,
+) {
     Row(
         modifier = Modifier.padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -41,9 +41,10 @@ fun LoginScreen(
     val clipboardManager = LocalClipboardManager.current
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(32.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -78,9 +79,10 @@ fun LoginScreen(
                 Button(
                     onClick = onRequestCode,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                    ),
+                    colors =
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                        ),
                 ) {
                     Text("Sign in with Microsoft", modifier = Modifier.padding(vertical = 8.dp))
                 }

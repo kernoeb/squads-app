@@ -53,7 +53,10 @@ fun MailScreen(viewModel: MailViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun MailListScreen(messages: List<MailMessage>, onMailClick: (MailMessage) -> Unit) {
+private fun MailListScreen(
+    messages: List<MailMessage>,
+    onMailClick: (MailMessage) -> Unit,
+) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
             Text(
@@ -75,12 +78,16 @@ private fun MailListScreen(messages: List<MailMessage>, onMailClick: (MailMessag
 }
 
 @Composable
-private fun MailRow(mail: MailMessage, onClick: () -> Unit) {
+private fun MailRow(
+    mail: MailMessage,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Avatar(name = mail.fromName)
@@ -154,7 +161,10 @@ private fun MailRow(mail: MailMessage, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MailDetailScreen(mail: MailMessage, onBack: () -> Unit) {
+private fun MailDetailScreen(
+    mail: MailMessage,
+    onBack: () -> Unit,
+) {
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
             title = {},

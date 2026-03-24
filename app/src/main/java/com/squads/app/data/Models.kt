@@ -125,7 +125,10 @@ enum class SearchResultType { CHAT, MAIL, CALENDAR }
 
 fun LocalDateTime.toRelativeTime(): String {
     val now = LocalDateTime.now()
-    val diffMinutes = java.time.Duration.between(this, now).toMinutes()
+    val diffMinutes =
+        java.time.Duration
+            .between(this, now)
+            .toMinutes()
     return when {
         diffMinutes < 1 -> "now"
         diffMinutes < 60 -> "${diffMinutes}m"
@@ -135,8 +138,6 @@ fun LocalDateTime.toRelativeTime(): String {
     }
 }
 
-fun LocalDateTime.toTimeString(): String =
-    format(DateTimeFormatter.ofPattern("HH:mm"))
+fun LocalDateTime.toTimeString(): String = format(DateTimeFormatter.ofPattern("HH:mm"))
 
-fun LocalDateTime.toDateTimeString(): String =
-    format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
+fun LocalDateTime.toDateTimeString(): String = format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
