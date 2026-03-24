@@ -53,6 +53,7 @@ class ChatsViewModel
         val messageImages: StateFlow<Map<String, ImageBitmap>> = _messageImages
 
         private var myUserId: String? = null
+        private var myDisplayName: String? = null
         private var chatPollingJob: Job? = null
         private var messagePollingJob: Job? = null
 
@@ -73,6 +74,7 @@ class ChatsViewModel
                 try {
                     val me = api.getMe()
                     myUserId = me.id
+                    myDisplayName = me.displayName
                     loadBitmaps(listOf(me.id), _photos) { api.getProfilePhoto(it) }
                 } catch (_: Exception) {
                 }
@@ -131,6 +133,24 @@ class ChatsViewModel
             startMessagePolling(chat.id)
         }
 
+        private suspend fun refreshMessages(chatId: String) {
+            try {
+                val fresh = api.getChatMessages(chatId)
+                _messages.value = mergeWithOptimistic(fresh)
+                loadPhotosForIds(fresh.map { it.senderObjectId })
+                loadMessageImages(fresh)
+            } catch (_: Exception) {
+            }
+        }
+
+        private fun mergeWithOptimistic(server: List<ChatMessage>): List<ChatMessage> {
+            val pending = _messages.value.filter { it.id.startsWith("local-") }
+            if (pending.isEmpty()) return server
+            val latestServerTime = server.maxOfOrNull { it.timestamp } ?: return server + pending
+            val stillPending = pending.filter { it.timestamp.isAfter(latestServerTime) }
+            return server + stillPending
+        }
+
         private fun startMessagePolling(chatId: String) {
             messagePollingJob?.cancel()
             messagePollingJob =
@@ -139,10 +159,12 @@ class ChatsViewModel
                         delay(10_000)
                         try {
                             val fresh = api.getChatMessages(chatId)
-                            if (fresh.size != _messages.value.size ||
-                                fresh.lastOrNull()?.id != _messages.value.lastOrNull()?.id
+                            val merged = mergeWithOptimistic(fresh)
+                            val serverIds = _messages.value.filter { !it.id.startsWith("local-") }
+                            if (fresh.size != serverIds.size ||
+                                fresh.lastOrNull()?.id != serverIds.lastOrNull()?.id
                             ) {
-                                _messages.value = fresh
+                                _messages.value = merged
                                 loadPhotosForIds(fresh.map { it.senderObjectId })
                                 loadMessageImages(fresh)
                             }
@@ -163,6 +185,9 @@ class ChatsViewModel
         ) {
             if (content.isBlank()) return
 
+            val senderObjectId = myUserId ?: ""
+            val senderDisplayName = myDisplayName ?: "You"
+
             val newMsg =
                 ChatMessage(
                     id = "local-${System.currentTimeMillis()}",
@@ -173,8 +198,9 @@ class ChatsViewModel
                             .replace("<", "&lt;")
                             .replace(">", "&gt;")
                             .replace("\n", "<br>"),
-                    senderName = "You",
+                    senderName = senderDisplayName,
                     senderId = "me",
+                    senderObjectId = senderObjectId,
                     timestamp = java.time.LocalDateTime.now(),
                     isFromMe = true,
                 )
@@ -183,6 +209,9 @@ class ChatsViewModel
             viewModelScope.launch {
                 try {
                     api.sendMessage(chatId, content)
+                    // Re-fetch to get server-confirmed message
+                    delay(500)
+                    refreshMessages(chatId)
                 } catch (e: Exception) {
                     _error.value = "Failed to send: ${e.message}"
                 }
@@ -197,31 +226,38 @@ class ChatsViewModel
             loadBitmaps(userIds.filter { it.isNotBlank() }, _photos) { api.getProfilePhoto(it) }
         }
 
+        fun loadDataForMessages(messages: List<ChatMessage>) {
+            loadPhotosForIds(messages.map { it.senderObjectId })
+            loadBitmaps(messages.flatMap { it.imageUrls }, _messageImages) { api.fetchImage(it) }
+        }
+
         private fun loadBitmaps(
             keys: List<String>,
             target: MutableStateFlow<Map<String, ImageBitmap>>,
             fetcher: suspend (String) -> ByteArray?,
         ) {
-            val toLoad = keys.distinct().filter { it !in target.value }.take(30)
+            val toLoad = keys.distinct().filter { it !in target.value }
             if (toLoad.isEmpty()) return
 
             viewModelScope.launch {
-                val loaded =
-                    toLoad
-                        .map { key ->
-                            async {
-                                fetcher(key)?.let { bytes ->
-                                    BitmapFactory
-                                        .decodeByteArray(bytes, 0, bytes.size)
-                                        ?.let { key to it.asImageBitmap() }
+                toLoad.chunked(15).forEach { chunk ->
+                    val loaded =
+                        chunk
+                            .map { key ->
+                                async {
+                                    fetcher(key)?.let { bytes ->
+                                        BitmapFactory
+                                            .decodeByteArray(bytes, 0, bytes.size)
+                                            ?.let { key to it.asImageBitmap() }
+                                    }
                                 }
-                            }
-                        }.awaitAll()
-                        .filterNotNull()
-                        .toMap()
+                            }.awaitAll()
+                            .filterNotNull()
+                            .toMap()
 
-                if (loaded.isNotEmpty()) {
-                    target.update { it + loaded }
+                    if (loaded.isNotEmpty()) {
+                        target.update { it + loaded }
+                    }
                 }
             }
         }
