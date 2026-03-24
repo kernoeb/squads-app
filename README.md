@@ -46,6 +46,8 @@ just              # list all available commands
 just build        # build debug APK
 just run          # build + install + launch
 just lint         # run lint checks
+just ktlint       # check code style
+just format       # auto-format code
 just test         # run unit tests
 just logcat       # filtered logcat output
 just restart      # kill + relaunch
@@ -63,6 +65,7 @@ just restart      # kill + relaunch
 | API | Microsoft Graph, Teams Chat Service, IC3 |
 | HTML | Jsoup |
 | Effects | Haze (glassmorphism nav bar) |
+| Linter | ktlint via ktlint-gradle |
 | Font | Inter via Google Fonts |
 
 ## Project structure
