@@ -143,3 +143,14 @@ fun LocalDateTime.toRelativeTime(): String {
 fun LocalDateTime.toTimeString(): String = format(DateTimeFormatter.ofPattern("HH:mm"))
 
 fun LocalDateTime.toDateTimeString(): String = format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
+
+fun graphProfilePhotoUrl(userId: String): String = "https://graph.microsoft.com/v1.0/users/$userId/photo/\$value"
+
+fun LocalDateTime.toEpochMillis(): Long =
+    try {
+        atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+    } catch (_: ArithmeticException) {
+        0L
+    }
+
+fun Long.toLocalDateTime(): LocalDateTime = LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(this), java.time.ZoneId.systemDefault())

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -24,12 +25,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.ChatConversation
+import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.GroupAvatar
@@ -45,14 +46,13 @@ fun ChatsScreen(
 ) {
     val chats by viewModel.chats.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val photos by viewModel.photos.collectAsState()
 
     if (isLoading && chats.isEmpty()) {
         LoadingScreen()
         return
     }
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         item {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
@@ -73,11 +73,9 @@ fun ChatsScreen(
                 }
             }
         }
-        items(chats, key = { it.id }) { chat ->
+        items(chats, key = { it.id }, contentType = { "chat" }) { chat ->
             ChatRow(
                 chat = chat,
-                photo = chat.memberId?.let { photos[it] },
-                groupPhotos = chat.memberIds.map { photos[it] },
                 onClick = {
                     viewModel.selectChat(chat)
                     onChatClick(chat)
@@ -95,8 +93,6 @@ fun ChatsScreen(
 @Composable
 private fun ChatRow(
     chat: ChatConversation,
-    photo: ImageBitmap? = null,
-    groupPhotos: List<ImageBitmap?> = emptyList(),
     onClick: () -> Unit,
 ) {
     Row(
@@ -110,13 +106,13 @@ private fun ChatRow(
         if (!chat.isOneOnOne && chat.memberIds.size >= 2) {
             GroupAvatar(
                 names = chat.memberNames,
-                photos = groupPhotos,
+                photoUrls = chat.memberIds.map { graphProfilePhotoUrl(it) },
             )
         } else {
             Avatar(
                 name = chat.title,
                 isGroup = !chat.isOneOnOne,
-                photo = photo,
+                photoUrl = chat.memberId?.let { graphProfilePhotoUrl(it) },
             )
         }
 

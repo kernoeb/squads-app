@@ -21,9 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -38,7 +36,7 @@ fun LoginScreen(
     onReset: () -> Unit,
 ) {
     val activity = LocalContext.current as Activity
-    val clipboardManager = LocalClipboardManager.current
+    val clipboardManager = activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
 
     Column(
         modifier =
@@ -116,7 +114,7 @@ fun LoginScreen(
                 Spacer(Modifier.height(16.dp))
 
                 OutlinedButton(
-                    onClick = { clipboardManager.setText(AnnotatedString(deviceCodeState.userCode)) },
+                    onClick = { clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText("code", deviceCodeState.userCode)) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Copy code")
@@ -126,7 +124,7 @@ fun LoginScreen(
 
                 Button(
                     onClick = {
-                        clipboardManager.setText(AnnotatedString(deviceCodeState.userCode))
+                        clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText("code", deviceCodeState.userCode))
                         onOpenBrowser(activity)
                     },
                     modifier = Modifier.fillMaxWidth(),

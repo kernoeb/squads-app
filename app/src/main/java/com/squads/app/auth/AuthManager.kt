@@ -10,10 +10,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,7 +46,8 @@ sealed class DeviceCodeState {
 class AuthManager
     @Inject
     constructor(
-        @ApplicationContext private val context: Context,
+        @param:ApplicationContext private val context: Context,
+        private val httpClient: OkHttpClient,
     ) {
         private val prefs: SharedPreferences =
             context.getSharedPreferences("squads_auth", Context.MODE_PRIVATE)
@@ -126,31 +128,26 @@ class AuthManager
          */
         private suspend fun requestDeviceCode(): JSONObject =
             withContext(Dispatchers.IO) {
-                val url = URL(OAuthConfig.deviceCodeUrl())
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-                conn.setRequestProperty("User-Agent", com.squads.app.data.USER_AGENT)
-                conn.doOutput = true
-
-                OutputStreamWriter(conn.outputStream).use { it.write(OAuthConfig.deviceCodeBody()) }
-
-                val code = conn.responseCode
-                val body =
-                    if (code in 200..299) {
-                        conn.inputStream.bufferedReader().readText()
-                    } else {
-                        val err = conn.errorStream?.bufferedReader()?.readText() ?: "Unknown error"
-                        throw Exception("Device code request failed ($code): $err")
+                val requestBody =
+                    OAuthConfig
+                        .deviceCodeBody()
+                        .toRequestBody("application/x-www-form-urlencoded".toMediaType())
+                val request =
+                    Request
+                        .Builder()
+                        .url(OAuthConfig.deviceCodeUrl())
+                        .post(requestBody)
+                        .header("User-Agent", com.squads.app.data.USER_AGENT)
+                        .build()
+                httpClient.newCall(request).execute().use { response ->
+                    val body = response.body.string()
+                    if (!response.isSuccessful) {
+                        throw Exception("Device code request failed (${response.code}): $body")
                     }
-
-                JSONObject(body)
+                    JSONObject(body)
+                }
             }
 
-        /**
-         * Poll the token endpoint until the user authorizes the device code.
-         * Returns the refresh_token on success, null on timeout.
-         */
         private suspend fun pollForToken(
             deviceCode: String,
             intervalSec: Int,
@@ -172,29 +169,27 @@ class AuthManager
             return null
         }
 
-        /**
-         * Try to exchange the device code for tokens (same as CLI).
-         */
         private suspend fun exchangeDeviceCode(deviceCode: String): JSONObject =
             withContext(Dispatchers.IO) {
-                val url = URL(OAuthConfig.tokenUrl())
-                val conn = url.openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-                conn.setRequestProperty("Origin", "https://teams.microsoft.com")
-                conn.setRequestProperty("User-Agent", com.squads.app.data.USER_AGENT)
-                conn.doOutput = true
-
-                OutputStreamWriter(conn.outputStream).use { it.write(OAuthConfig.tokenPollBody(deviceCode)) }
-
-                val code = conn.responseCode
-                if (code !in 200..299) {
-                    val err = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                    throw Exception("Pending ($code)")
+                val requestBody =
+                    OAuthConfig
+                        .tokenPollBody(deviceCode)
+                        .toRequestBody("application/x-www-form-urlencoded".toMediaType())
+                val request =
+                    Request
+                        .Builder()
+                        .url(OAuthConfig.tokenUrl())
+                        .post(requestBody)
+                        .header("Origin", "https://teams.microsoft.com")
+                        .header("User-Agent", com.squads.app.data.USER_AGENT)
+                        .build()
+                httpClient.newCall(request).execute().use { response ->
+                    val body = response.body.string()
+                    if (!response.isSuccessful) {
+                        throw Exception("Pending (${response.code})")
+                    }
+                    JSONObject(body)
                 }
-
-                val body = conn.inputStream.bufferedReader().readText()
-                JSONObject(body)
             }
 
         fun getRefreshToken(): String? = prefs.getString("refresh_token", null)

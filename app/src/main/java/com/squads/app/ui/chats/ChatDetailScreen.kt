@@ -1,6 +1,5 @@
 package com.squads.app.ui.chats
 
-import android.os.Build
 import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
@@ -12,7 +11,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -49,7 +47,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -73,31 +70,28 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import coil3.compose.AsyncImage
 import com.squads.app.data.ChatMessage
+import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.data.toTimeString
 import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.GroupAvatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip
 import com.squads.app.viewmodel.ChatsViewModel
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -111,10 +105,8 @@ fun ChatDetailScreen(
     val chat by viewModel.selectedChat.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val messagesLoading by viewModel.messagesLoading.collectAsState()
-    val photos by viewModel.photos.collectAsState()
-    val messageImages by viewModel.messageImages.collectAsState()
     var inputText by remember { mutableStateOf("") }
-    var fullscreenImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
@@ -125,19 +117,6 @@ fun ChatDetailScreen(
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty() && listState.firstVisibleItemIndex <= 3) {
             listState.animateScrollToItem(0)
-        }
-    }
-
-    // Lazy-load photos and images for visible messages
-    LaunchedEffect(Unit) {
-        snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? String }
-        }.distinctUntilChanged().collect { visibleKeys ->
-            val currentMessages = viewModel.messages.value
-            val visibleMsgs = currentMessages.filter { it.id in visibleKeys }
-            if (visibleMsgs.isNotEmpty()) {
-                viewModel.loadDataForMessages(visibleMsgs)
-            }
         }
     }
 
@@ -153,14 +132,14 @@ fun ChatDetailScreen(
                                 GroupAvatar(
                                     names = currentChat.memberNames,
                                     size = 36.dp,
-                                    photos = currentChat.memberIds.map { photos[it] },
+                                    photoUrls = currentChat.memberIds.map { graphProfilePhotoUrl(it) },
                                 )
                             } else {
                                 Avatar(
                                     name = currentChat.title,
                                     size = 36.dp,
                                     isGroup = !currentChat.isOneOnOne,
-                                    photo = currentChat.memberId?.let { photos[it] },
+                                    photoUrl = currentChat.memberId?.let { graphProfilePhotoUrl(it) },
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
@@ -238,42 +217,35 @@ fun ChatDetailScreen(
                         reverseLayout = true,
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
-                        item { Spacer(Modifier.height(8.dp)) }
+                        item { Spacer(Modifier.height(16.dp)) }
 
                         reversedMessages.forEachIndexed { index, msg ->
-                            val prevMsg = reversedMessages.getOrNull(index + 1) // older message (above)
-                            val nextMsg = reversedMessages.getOrNull(index - 1) // newer message (below)
+                            val prevMsg = reversedMessages.getOrNull(index + 1)
+                            val nextMsg = reversedMessages.getOrNull(index - 1)
 
                             val isFirstInGroup =
                                 prevMsg == null ||
                                     prevMsg.senderId != msg.senderId ||
                                     prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()
 
-                            val isLastInGroup =
-                                nextMsg == null ||
-                                    nextMsg.senderId != msg.senderId
-
-                            // Date separator — show when the date changes
                             if (prevMsg != null && prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()) {
-                                item(key = "date-${msg.timestamp.toLocalDate()}") {
+                                item(key = "date-${msg.timestamp.toLocalDate()}", contentType = "dateSeparator") {
                                     DateSeparator(msg.timestamp.toLocalDate())
                                 }
                             }
 
-                            // Show date for the very first (oldest) message
                             if (prevMsg == null) {
-                                item(key = "date-first-${msg.timestamp.toLocalDate()}") {
+                                item(key = "date-first-${msg.timestamp.toLocalDate()}", contentType = "dateSeparator") {
                                     DateSeparator(msg.timestamp.toLocalDate())
                                 }
                             }
 
-                            item(key = msg.id) {
+                            item(key = msg.id, contentType = "message") {
                                 MessageRow(
                                     msg = msg,
-                                    senderPhoto = photos[msg.senderObjectId],
+                                    senderPhotoUrl = graphProfilePhotoUrl(msg.senderObjectId),
                                     isFirstInGroup = isFirstInGroup,
-                                    messageImages = messageImages,
-                                    onImageClick = { fullscreenImage = it },
+                                    onImageClick = { url -> fullscreenImageUrl = url },
                                 )
                             }
                         }
@@ -322,17 +294,17 @@ fun ChatDetailScreen(
     }
 
     // Fullscreen image viewer
-    if (fullscreenImage != null) {
+    if (fullscreenImageUrl != null) {
         ImageViewer(
-            image = fullscreenImage!!,
-            onDismiss = { fullscreenImage = null },
+            imageUrl = fullscreenImageUrl!!,
+            onDismiss = { fullscreenImageUrl = null },
         )
     }
 }
 
 @Composable
 private fun ImageViewer(
-    image: ImageBitmap,
+    imageUrl: String,
     onDismiss: () -> Unit,
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
@@ -365,8 +337,8 @@ private fun ImageViewer(
                 ),
         contentAlignment = Alignment.Center,
     ) {
-        Image(
-            bitmap = image,
+        AsyncImage(
+            model = imageUrl,
             contentDescription = "Full screen image",
             contentScale = ContentScale.Fit,
             modifier =
@@ -445,7 +417,7 @@ private fun MessageInput(
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.Bottom,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             TextField(
                 value = value,
@@ -505,18 +477,16 @@ private fun MessageInput(
 @Composable
 private fun MessageRow(
     msg: ChatMessage,
-    senderPhoto: ImageBitmap? = null,
+    senderPhotoUrl: String? = null,
     isFirstInGroup: Boolean = true,
-    messageImages: Map<String, ImageBitmap> = emptyMap(),
-    onImageClick: (ImageBitmap) -> Unit = {},
+    onImageClick: (String) -> Unit = {},
 ) {
     val textColor = MaterialTheme.colorScheme.onSurface
-    val textColorArgb = textColor.toArgb()
-    val linkColorArgb = MaterialTheme.colorScheme.primary.toArgb()
+    val textColorArgb = remember(textColor) { textColor.toArgb() }
+    val linkColor = MaterialTheme.colorScheme.primary
+    val linkColorArgb = remember(linkColor) { linkColor.toArgb() }
     val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
 
-    @Suppress("DEPRECATION")
-    val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
 
     Row(
@@ -526,7 +496,9 @@ private fun MessageRow(
                 .combinedClickable(
                     onClick = {},
                     onLongClick = {
-                        clipboardManager.setText(AnnotatedString(msg.content))
+                        val clip = android.content.ClipData.newPlainText("message", msg.content)
+                        val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        cm.setPrimaryClip(clip)
                         Toast.makeText(context, "Copied", Toast.LENGTH_SHORT).show()
                     },
                 ).padding(
@@ -541,7 +513,7 @@ private fun MessageRow(
                 Avatar(
                     name = msg.senderName,
                     size = 32.dp,
-                    photo = senderPhoto,
+                    photoUrl = senderPhotoUrl,
                 )
             }
         }
@@ -614,35 +586,17 @@ private fun MessageRow(
             }
 
             msg.imageUrls.forEach { url ->
-                val image = messageImages[url]
-                if (image != null) {
-                    Image(
-                        bitmap = image,
-                        contentDescription = "Image",
-                        modifier =
-                            Modifier
-                                .widthIn(max = 350.dp)
-                                .padding(vertical = 4.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { onImageClick(image) },
-                        contentScale = ContentScale.FillWidth,
-                    )
-                } else {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(width = 200.dp, height = 100.dp)
-                                .padding(vertical = 4.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                    }
-                }
+                AsyncImage(
+                    model = url,
+                    contentDescription = "Image",
+                    modifier =
+                        Modifier
+                            .widthIn(max = 350.dp)
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onImageClick(url) },
+                    contentScale = ContentScale.FillWidth,
+                )
             }
 
             if (msg.content.isNotBlank()) {
@@ -663,13 +617,7 @@ private fun MessageRow(
                             }
                         },
                         update = { textView ->
-                            val spanned =
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                    Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_COMPACT)
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    Html.fromHtml(cleanedHtml)
-                                }
+                            val spanned = Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_COMPACT)
                             textView.text =
                                 spanned.toString().trimEnd().let { trimmed ->
                                     spanned.subSequence(0, trimmed.length)

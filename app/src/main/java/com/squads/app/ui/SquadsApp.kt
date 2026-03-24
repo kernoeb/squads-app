@@ -1,10 +1,8 @@
 package com.squads.app.ui
 
 import android.view.HapticFeedbackConstants
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -21,9 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -34,11 +30,13 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import com.squads.app.ui.auth.LoginScreen
 import com.squads.app.ui.calendar.CalendarScreen
 import com.squads.app.ui.chats.ChatDetailScreen
 import com.squads.app.ui.chats.ChatsScreen
+import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.mail.MailDetailScreen
 import com.squads.app.ui.mail.MailScreen
 import com.squads.app.ui.profile.ProfileScreen
@@ -51,6 +49,7 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.materials.CupertinoMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 
 sealed class Screen(
     val route: String,
@@ -77,6 +76,8 @@ private val bottomNavItems =
         Screen.Search,
     )
 
+private val bottomBarRoutes = setOf("chats_list", "mail_list", "calendar", "teams", "search", "profile")
+
 @Composable
 fun SquadsApp(authViewModel: AuthViewModel = hiltViewModel()) {
     val isAuthenticated by authViewModel.isAuthenticated.collectAsState()
@@ -95,6 +96,7 @@ fun SquadsApp(authViewModel: AuthViewModel = hiltViewModel()) {
     }
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun MainApp(authViewModel: AuthViewModel) {
     val navController = rememberNavController()
@@ -102,37 +104,14 @@ private fun MainApp(authViewModel: AuthViewModel) {
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
     val view = LocalView.current
-
-    val showBottomBar = currentRoute in bottomNavItems.map { it.route } || currentRoute == "profile"
-
-    val chatsViewModel: ChatsViewModel = hiltViewModel()
-    val mailViewModel: MailViewModel = hiltViewModel()
-    val selectedMail by mailViewModel.selectedMail.collectAsState()
-    var showChatDetail by remember { mutableStateOf(false) }
     val hazeState = remember { HazeState() }
 
-    if (showChatDetail) {
-        BackHandler {
-            chatsViewModel.stopMessagePolling()
-            showChatDetail = false
-        }
-        ChatDetailScreen(
-            viewModel = chatsViewModel,
-            onBack = {
-                chatsViewModel.stopMessagePolling()
-                showChatDetail = false
-            },
-        )
-    } else if (selectedMail != null) {
-        BackHandler { mailViewModel.clearSelection() }
-        MailDetailScreen(
-            mail = selectedMail!!,
-            onBack = { mailViewModel.clearSelection() },
-        )
-    } else {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            bottomBar = {
+    val showBottomBar = currentRoute in bottomBarRoutes
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            if (showBottomBar) {
                 val hazeStyle = CupertinoMaterials.regular()
                 NavigationBar(
                     containerColor = Color.Transparent,
@@ -164,39 +143,88 @@ private fun MainApp(authViewModel: AuthViewModel) {
                         )
                     }
                 }
-            },
-        ) { innerPadding ->
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .hazeSource(state = hazeState)
-                        .padding(top = innerPadding.calculateTopPadding()),
+            }
+        },
+    ) { _ ->
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .hazeSource(state = hazeState),
+        ) {
+            NavHost(
+                navController = navController,
+                startDestination = Screen.Chats.route,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.Chats.route,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    composable(Screen.Chats.route) {
+                // Chats tab — nested graph to share ChatsViewModel
+                navigation(startDestination = "chats_list", route = Screen.Chats.route) {
+                    composable("chats_list") { entry ->
+                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Chats.route) }
+                        val chatsViewModel: ChatsViewModel = hiltViewModel(parentEntry)
                         ChatsScreen(
                             viewModel = chatsViewModel,
-                            onChatClick = { showChatDetail = true },
+                            onChatClick = { navController.navigate("chatDetail") },
                             onProfileClick = { navController.navigate("profile") },
                         )
                     }
-                    composable(Screen.Mail.route) { MailScreen(viewModel = mailViewModel) }
-                    composable(Screen.Calendar.route) { CalendarScreen() }
-                    composable(Screen.Teams.route) { TeamsScreen() }
-                    composable(Screen.Search.route) { SearchScreen() }
-                    composable("profile") {
-                        val myPhoto by chatsViewModel.myPhoto.collectAsState()
-                        ProfileScreen(
-                            authViewModel = authViewModel,
-                            profilePhoto = myPhoto,
-                            onBack = { navController.popBackStack() },
+                    composable("chatDetail") { entry ->
+                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Chats.route) }
+                        val chatsViewModel: ChatsViewModel = hiltViewModel(parentEntry)
+                        ChatDetailScreen(
+                            viewModel = chatsViewModel,
+                            onBack = {
+                                chatsViewModel.stopMessagePolling()
+                                navController.popBackStack()
+                            },
                         )
                     }
+                }
+
+                // Mail tab — nested graph to share MailViewModel
+                navigation(startDestination = "mail_list", route = Screen.Mail.route) {
+                    composable("mail_list") { entry ->
+                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Mail.route) }
+                        val mailViewModel: MailViewModel = hiltViewModel(parentEntry)
+                        MailScreen(
+                            viewModel = mailViewModel,
+                            onMailClick = { navController.navigate("mailDetail") },
+                        )
+                    }
+                    composable("mailDetail") { entry ->
+                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Mail.route) }
+                        val mailViewModel: MailViewModel = hiltViewModel(parentEntry)
+                        val selectedMail by mailViewModel.selectedMail.collectAsState()
+                        if (selectedMail != null) {
+                            MailDetailScreen(
+                                mail = selectedMail!!,
+                                onBack = {
+                                    navController.popBackStack()
+                                    mailViewModel.clearSelection()
+                                },
+                            )
+                        } else {
+                            LoadingScreen()
+                        }
+                    }
+                }
+
+                composable(Screen.Calendar.route) { CalendarScreen() }
+                composable(Screen.Teams.route) { TeamsScreen() }
+                composable(Screen.Search.route) { SearchScreen() }
+                composable("profile") { entry ->
+                    val chatsEntry =
+                        try {
+                            navController.getBackStackEntry(Screen.Chats.route)
+                        } catch (_: IllegalArgumentException) {
+                            null
+                        }
+                    val chatsViewModel: ChatsViewModel? = chatsEntry?.let { hiltViewModel(it) }
+                    ProfileScreen(
+                        authViewModel = authViewModel,
+                        myUserId = chatsViewModel?.myUserId,
+                        onBack = { navController.popBackStack() },
+                    )
                 }
             }
         }

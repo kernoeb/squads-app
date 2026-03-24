@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -41,14 +42,23 @@ import com.squads.app.ui.components.UnreadBadge
 import com.squads.app.viewmodel.MailViewModel
 
 @Composable
-fun MailScreen(viewModel: MailViewModel = hiltViewModel()) {
+fun MailScreen(
+    viewModel: MailViewModel = hiltViewModel(),
+    onMailClick: () -> Unit = {},
+) {
     val messages by viewModel.messages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     if (isLoading && messages.isEmpty()) {
         LoadingScreen()
     } else {
-        MailListScreen(messages = messages, onMailClick = { viewModel.selectMail(it) })
+        MailListScreen(
+            messages = messages,
+            onMailClick = { mail ->
+                viewModel.selectMail(mail)
+                onMailClick()
+            },
+        )
     }
 }
 
@@ -57,7 +67,7 @@ private fun MailListScreen(
     messages: List<MailMessage>,
     onMailClick: (MailMessage) -> Unit,
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         item {
             Text(
                 "Mail",
@@ -66,7 +76,7 @@ private fun MailListScreen(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             )
         }
-        items(messages, key = { it.id }) { mail ->
+        items(messages, key = { it.id }, contentType = { "mail" }) { mail ->
             MailRow(mail = mail, onClick = { onMailClick(mail) })
             HorizontalDivider(
                 modifier = Modifier.padding(start = 76.dp),

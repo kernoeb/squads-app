@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -103,7 +104,7 @@ private fun TeamsListView(
     teams: List<Team>,
     onTeamClick: (Team) -> Unit,
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         item {
             Text(
                 "Teams",
@@ -112,7 +113,7 @@ private fun TeamsListView(
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
             )
         }
-        items(teams, key = { it.id }) { team ->
+        items(teams, key = { it.id }, contentType = { "team" }) { team ->
             Card(
                 modifier =
                     Modifier
@@ -152,7 +153,7 @@ private fun ChannelsListView(
     onChannelClick: (Channel) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(team.channels, key = { it.id }) { channel ->
+        items(team.channels, key = { it.id }, contentType = { "channel" }) { channel ->
             Row(
                 modifier =
                     Modifier
@@ -182,7 +183,7 @@ private fun ChannelsListView(
 private fun ChannelMessagesView(messages: List<ChannelMessage>) {
     LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
         item { Spacer(Modifier.height(8.dp)) }
-        items(messages, key = { it.id }) { msg ->
+        items(messages, key = { it.id }, contentType = { "channelMessage" }) { msg ->
             Card(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

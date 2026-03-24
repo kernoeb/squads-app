@@ -22,9 +22,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.ui.components.Avatar
 import com.squads.app.viewmodel.AuthViewModel
 
@@ -32,10 +32,11 @@ import com.squads.app.viewmodel.AuthViewModel
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
-    profilePhoto: ImageBitmap? = null,
+    myUserId: String? = null,
     onBack: () -> Unit,
 ) {
     val userName by authViewModel.userName.collectAsState()
+    val photoUrl = myUserId?.let { graphProfilePhotoUrl(it) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         TopAppBar(
@@ -51,7 +52,7 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Avatar(name = userName ?: "User", size = 80.dp, photo = profilePhoto)
+            Avatar(name = userName ?: "User", size = 80.dp, photoUrl = photoUrl)
 
             Spacer(Modifier.height(16.dp))
 

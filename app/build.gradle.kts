@@ -27,6 +27,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -72,14 +73,27 @@ dependencies {
     implementation("dev.chrisbanes.haze:haze:1.7.2")
     implementation("dev.chrisbanes.haze:haze-materials:1.7.2")
 
-    // Image loading
-    implementation("io.coil-kt:coil-compose:2.7.0")
+    // HTTP client
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
+
+    // Image loading (Coil 3)
+    implementation("io.coil-kt.coil3:coil-compose:3.4.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
+
+    // Room database
+    val roomVersion = "2.8.4"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 
     // HTML parsing
     implementation("org.jsoup:jsoup:1.22.1")
 
     // Browser (CustomTab for OAuth)
     implementation("androidx.browser:browser:1.9.0")
+
+    // Baseline profile installer
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     // Splash screen
     implementation("androidx.core:core-splashscreen:1.2.0")

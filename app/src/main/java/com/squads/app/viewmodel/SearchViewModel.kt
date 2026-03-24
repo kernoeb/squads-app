@@ -27,16 +27,16 @@ class SearchViewModel
         val results: StateFlow<List<SearchResult>> = _results
 
         private var searchJob: Job? = null
+        private var lastSearchQuery: String? = null
 
-        /**
-         * Search across chats and mail in parallel with debounce.
-         */
         fun search(query: String) {
             _query.value = query
             if (query.isBlank()) {
                 _results.value = emptyList()
+                lastSearchQuery = null
                 return
             }
+            if (query == lastSearchQuery && _results.value.isNotEmpty()) return
 
             searchJob?.cancel()
             searchJob =
@@ -89,6 +89,7 @@ class SearchViewModel
                         }
 
                     _results.value = chatsDeferred.await() + mailDeferred.await()
+                    lastSearchQuery = query
                 }
         }
     }

@@ -35,17 +35,23 @@ class TeamsViewModel
         private val _error = MutableStateFlow<String?>(null)
         val error: StateFlow<String?> = _error
 
+        private var lastLoadTime = 0L
+
         init {
             loadTeams()
         }
 
-        fun loadTeams() {
+        fun loadTeams(forceRefresh: Boolean = false) {
+            val now = System.currentTimeMillis()
+            if (!forceRefresh && _teams.value.isNotEmpty() && now - lastLoadTime < 120_000) return
+
             viewModelScope.launch {
                 _isLoading.value = true
                 _error.value = null
                 try {
                     val (_, teams) = api.getUserDetails()
                     _teams.value = teams
+                    lastLoadTime = System.currentTimeMillis()
                 } catch (e: Exception) {
                     _error.value = e.message
                 } finally {

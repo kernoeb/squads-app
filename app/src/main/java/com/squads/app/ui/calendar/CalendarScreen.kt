@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,6 +31,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +44,8 @@ import com.squads.app.data.toTimeString
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.viewmodel.CalendarViewModel
 import java.time.format.DateTimeFormatter
+
+private val DAY_HEADER_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, MMM d")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +60,7 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         return
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -84,20 +88,19 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
         if (isLoading) {
             LoadingScreen()
         } else {
+            val grouped = remember(events) { events.groupBy { it.startTime.toLocalDate() } }
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                // Group events by date
-                val grouped = events.groupBy { it.startTime.toLocalDate() }
                 grouped.forEach { (date, dayEvents) ->
-                    item {
+                    item(contentType = "dateHeader") {
                         Text(
-                            text = date.format(DateTimeFormatter.ofPattern("EEEE, MMM d")),
+                            text = date.format(DAY_HEADER_FORMATTER),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                         )
                     }
-                    items(dayEvents, key = { it.id }) { event ->
+                    items(dayEvents, key = { it.id }, contentType = { "event" }) { event ->
                         EventCard(event = event, onClick = { viewModel.selectEvent(event) })
                     }
                 }

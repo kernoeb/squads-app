@@ -10,11 +10,12 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -35,12 +36,11 @@ class TeamsApiClient
     constructor(
         private val authManager: AuthManager,
         private val emojiManager: EmojiManager,
+        private val httpClient: OkHttpClient,
     ) {
         private val tokenCache = mutableMapOf<String, Pair<String, Long>>()
         private val tokenMutex = Mutex()
         private val userNameCache = java.util.concurrent.ConcurrentHashMap<String, String>()
-        private val binaryCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
-        private val NO_DATA = ByteArray(0)
 
         @Volatile private var cachedMyUserId: String? = null
 
@@ -101,15 +101,20 @@ class TeamsApiClient
             token: String,
         ): String =
             withContext(Dispatchers.IO) {
-                val conn = URL(url).openConnection() as HttpURLConnection
-                conn.setRequestProperty("Authorization", "Bearer $token")
-                conn.setRequestProperty("User-Agent", USER_AGENT)
-
-                if (conn.responseCode !in 200..299) {
-                    val err = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                    throw Exception("API error (${conn.responseCode}): $err")
+                val request =
+                    Request
+                        .Builder()
+                        .url(url)
+                        .header("Authorization", "Bearer $token")
+                        .header("User-Agent", USER_AGENT)
+                        .build()
+                httpClient.newCall(request).execute().use { response ->
+                    val body = response.body.string()
+                    if (!response.isSuccessful) {
+                        throw Exception("API error (${response.code}): $body")
+                    }
+                    body
                 }
-                conn.inputStream.bufferedReader().readText()
             }
 
         private suspend fun httpPost(
@@ -120,21 +125,23 @@ class TeamsApiClient
             token: String? = null,
         ): JSONObject =
             withContext(Dispatchers.IO) {
-                val conn = URL(url).openConnection() as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.setRequestProperty("Content-Type", contentType)
-                conn.setRequestProperty("User-Agent", USER_AGENT)
-                token?.let { conn.setRequestProperty("Authorization", "Bearer $it") }
-                headers.forEach { (k, v) -> conn.setRequestProperty(k, v) }
-                conn.doOutput = true
+                val requestBody = body.toRequestBody(contentType.toMediaType())
+                val builder =
+                    Request
+                        .Builder()
+                        .url(url)
+                        .post(requestBody)
+                        .header("User-Agent", USER_AGENT)
+                token?.let { builder.header("Authorization", "Bearer $it") }
+                headers.forEach { (k, v) -> builder.header(k, v) }
 
-                OutputStreamWriter(conn.outputStream).use { it.write(body) }
-
-                if (conn.responseCode !in 200..299) {
-                    val err = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                    throw Exception("HTTP ${conn.responseCode}: $err")
+                httpClient.newCall(builder.build()).execute().use { response ->
+                    val responseBody = response.body.string()
+                    if (!response.isSuccessful) {
+                        throw Exception("HTTP ${response.code}: $responseBody")
+                    }
+                    JSONObject(responseBody)
                 }
-                JSONObject(conn.inputStream.bufferedReader().readText())
             }
 
         private suspend fun authenticatedGet(
@@ -146,6 +153,14 @@ class TeamsApiClient
         }
 
         private suspend fun graphGet(path: String) = authenticatedGet(path, SCOPE_GRAPH)
+
+        /** Public token accessor for Coil auth interceptor. */
+        suspend fun getTokenForUrl(url: String): String? =
+            when {
+                "graph.microsoft.com" in url -> getToken(SCOPE_GRAPH)
+                "teams.microsoft.com" in url || "asm.skype.com" in url -> getToken(SCOPE_IC3)
+                else -> null
+            }
 
         // ─── User / profile ──────────────────────────────────────────
 
@@ -160,33 +175,6 @@ class TeamsApiClient
                 email = json.str("mail"),
                 jobTitle = json.str("jobTitle").ifEmpty { null },
             )
-        }
-
-        suspend fun getProfilePhoto(userId: String): ByteArray? {
-            if (userId.isBlank()) return null
-            binaryCache[userId]?.let { return if (it === NO_DATA) null else it }
-
-            return try {
-                val token = getToken(SCOPE_GRAPH)
-                withContext(Dispatchers.IO) {
-                    val conn =
-                        URL("https://graph.microsoft.com/v1.0/users/$userId/photo/\$value")
-                            .openConnection() as HttpURLConnection
-                    conn.connectTimeout = 10_000
-                    conn.readTimeout = 10_000
-                    conn.setRequestProperty("Authorization", "Bearer $token")
-                    conn.setRequestProperty("User-Agent", USER_AGENT)
-                    if (conn.responseCode == 200) {
-                        conn.inputStream.readBytes().also { binaryCache[userId] = it }
-                    } else {
-                        binaryCache[userId] = NO_DATA
-                        null
-                    }
-                }
-            } catch (_: Exception) {
-                binaryCache[userId] = NO_DATA
-                null
-            }
         }
 
         private suspend fun getMyUserId(): String {
@@ -433,38 +421,6 @@ class TeamsApiClient
             url
                 .removePrefix("https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/contacts/")
                 .removePrefix("https://notifications.skype.net/v1/users/ME/contacts/")
-
-        // ─── Image fetching ─────────────────────────────────────────
-
-        suspend fun fetchImage(url: String): ByteArray? {
-            binaryCache[url]?.let { return if (it === NO_DATA) null else it }
-
-            val token =
-                when {
-                    "graph.microsoft.com" in url -> getToken(SCOPE_GRAPH)
-                    "teams.microsoft.com" in url || "asm.skype.com" in url -> getToken(SCOPE_IC3)
-                    else -> null
-                }
-
-            return try {
-                withContext(Dispatchers.IO) {
-                    val conn = URL(url).openConnection() as HttpURLConnection
-                    conn.connectTimeout = 15_000
-                    conn.readTimeout = 15_000
-                    conn.setRequestProperty("User-Agent", USER_AGENT)
-                    token?.let { conn.setRequestProperty("Authorization", "Bearer $it") }
-                    if (conn.responseCode == 200) {
-                        conn.inputStream.readBytes().also { binaryCache[url] = it }
-                    } else {
-                        binaryCache[url] = NO_DATA
-                        null
-                    }
-                }
-            } catch (_: Exception) {
-                binaryCache[url] = NO_DATA
-                null
-            }
-        }
 
         // ─── Mail ────────────────────────────────────────────────────
 

@@ -31,16 +31,31 @@ class CalendarViewModel
         private val _error = MutableStateFlow<String?>(null)
         val error: StateFlow<String?> = _error
 
+        private var lastLoadTime = 0L
+        private var lastLoadedForWeek: Boolean? = null
+
         init {
             loadEvents()
         }
 
-        fun loadEvents() {
+        fun loadEvents(forceRefresh: Boolean = false) {
+            val now = System.currentTimeMillis()
+            val showWeekNow = _showWeek.value
+            if (!forceRefresh &&
+                _events.value.isNotEmpty() &&
+                lastLoadedForWeek == showWeekNow &&
+                now - lastLoadTime < 60_000
+            ) {
+                return
+            }
+
             viewModelScope.launch {
                 _isLoading.value = true
                 _error.value = null
                 try {
-                    _events.value = api.getEvents(if (_showWeek.value) 7 else 1)
+                    _events.value = api.getEvents(if (showWeekNow) 7 else 1)
+                    lastLoadTime = System.currentTimeMillis()
+                    lastLoadedForWeek = showWeekNow
                 } catch (e: Exception) {
                     _error.value = e.message
                 } finally {
