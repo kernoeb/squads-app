@@ -6,6 +6,9 @@ import com.squads.app.data.SearchResult
 import com.squads.app.data.SearchResultType
 import com.squads.app.data.TeamsApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -22,9 +25,10 @@ class SearchViewModel @Inject constructor(
     private val _results = MutableStateFlow<List<SearchResult>>(emptyList())
     val results: StateFlow<List<SearchResult>> = _results
 
+    private var searchJob: Job? = null
+
     /**
-     * Search across chats and mail using the real APIs.
-     * Fetches current data and filters locally.
+     * Search across chats and mail in parallel with debounce.
      */
     fun search(query: String) {
         _query.value = query
@@ -33,43 +37,51 @@ class SearchViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
-            val results = mutableListOf<SearchResult>()
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(300) // debounce
+
             val q = query.lowercase()
 
-            // Search chats
-            try {
-                val (chats, _) = api.getUserDetails()
-                chats.filter {
-                    it.title.lowercase().contains(q) || it.lastMessage.lowercase().contains(q)
-                }.forEach {
-                    results.add(SearchResult(
-                        type = SearchResultType.CHAT,
-                        title = it.title,
-                        subtitle = "Chat",
-                        preview = it.lastMessage,
-                        id = it.id,
-                    ))
+            // Search chats and mail in parallel
+            val chatsDeferred = async {
+                try {
+                    val (chats, _) = api.getUserDetails()
+                    chats.filter {
+                        it.title.lowercase().contains(q) || it.lastMessage.lowercase().contains(q)
+                    }.map {
+                        SearchResult(
+                            type = SearchResultType.CHAT,
+                            title = it.title,
+                            subtitle = "Chat",
+                            preview = it.lastMessage,
+                            id = it.id,
+                        )
+                    }
+                } catch (_: Exception) {
+                    emptyList()
                 }
-            } catch (_: Exception) {}
+            }
 
-            // Search mail
-            try {
-                val mail = api.getMail(50)
-                mail.filter {
-                    it.subject.lowercase().contains(q) || it.bodyPreview.lowercase().contains(q)
-                }.forEach {
-                    results.add(SearchResult(
-                        type = SearchResultType.MAIL,
-                        title = it.subject,
-                        subtitle = it.fromName,
-                        preview = it.bodyPreview,
-                        id = it.id,
-                    ))
+            val mailDeferred = async {
+                try {
+                    api.getMail(50).filter {
+                        it.subject.lowercase().contains(q) || it.bodyPreview.lowercase().contains(q)
+                    }.map {
+                        SearchResult(
+                            type = SearchResultType.MAIL,
+                            title = it.subject,
+                            subtitle = it.fromName,
+                            preview = it.bodyPreview,
+                            id = it.id,
+                        )
+                    }
+                } catch (_: Exception) {
+                    emptyList()
                 }
-            } catch (_: Exception) {}
+            }
 
-            _results.value = results
+            _results.value = chatsDeferred.await() + mailDeferred.await()
         }
     }
 }

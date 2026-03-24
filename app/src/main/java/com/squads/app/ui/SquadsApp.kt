@@ -168,8 +168,10 @@ private fun MainApp(authViewModel: AuthViewModel) {
                     composable(Screen.Teams.route) { TeamsScreen() }
                     composable(Screen.Search.route) { SearchScreen() }
                     composable("profile") {
+                        val myPhoto by chatsViewModel.myPhoto.collectAsState()
                         ProfileScreen(
                             authViewModel = authViewModel,
+                            profilePhoto = myPhoto,
                             onBack = { navController.popBackStack() },
                         )
                     }

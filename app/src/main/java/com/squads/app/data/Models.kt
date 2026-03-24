@@ -27,6 +27,9 @@ data class ChatMessage(
     val timestamp: LocalDateTime,
     val isFromMe: Boolean = false,
     val reactions: List<Reaction> = emptyList(),
+    val imageUrls: List<String> = emptyList(),
+    val replyToName: String? = null,
+    val replyToPreview: String? = null,
 )
 
 data class Reaction(

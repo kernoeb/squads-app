@@ -56,7 +56,7 @@ fun Avatar(
             .joinToString("")
             .ifEmpty { "?" }
 
-        val color = avatarColors[name.hashCode().mod(avatarColors.size).let { if (it < 0) it + avatarColors.size else it }]
+        val color = avatarColors[name.hashCode().mod(avatarColors.size)]
 
         Box(
             modifier = modifier

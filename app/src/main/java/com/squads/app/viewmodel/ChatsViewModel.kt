@@ -15,6 +15,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -46,12 +48,32 @@ class ChatsViewModel @Inject constructor(
     private val _photos = MutableStateFlow<Map<String, ImageBitmap>>(emptyMap())
     val photos: StateFlow<Map<String, ImageBitmap>> = _photos
 
+    private val _messageImages = MutableStateFlow<Map<String, ImageBitmap>>(emptyMap())
+    val messageImages: StateFlow<Map<String, ImageBitmap>> = _messageImages
+
+    private var myUserId: String? = null
     private var chatPollingJob: Job? = null
     private var messagePollingJob: Job? = null
+
+    /** Current user's profile photo, derived from the shared photos map. */
+    val myPhoto: StateFlow<ImageBitmap?> = _photos
+        .map { myUserId?.let { id -> it[id] } }
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Eagerly, null)
 
     init {
         loadChats()
         startChatPolling()
+        loadMyPhoto()
+    }
+
+    private fun loadMyPhoto() {
+        viewModelScope.launch {
+            try {
+                val me = api.getMe()
+                myUserId = me.id
+                loadBitmaps(listOf(me.id), _photos) { api.getProfilePhoto(it) }
+            } catch (_: Exception) { }
+        }
     }
 
     fun loadChats() {
@@ -81,7 +103,7 @@ class ChatsViewModel @Inject constructor(
                         _chats.value = chats
                         loadPhotosForIds(chats.mapNotNull { if (it.isOneOnOne) it.memberId else null })
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) { }
             }
         }
     }
@@ -91,8 +113,10 @@ class ChatsViewModel @Inject constructor(
         _messagesLoading.value = true
         viewModelScope.launch {
             try {
-                _messages.value = api.getChatMessages(chat.id)
-                loadPhotosForIds(_messages.value.filter { !it.isFromMe }.map { it.senderObjectId })
+                val msgs = api.getChatMessages(chat.id)
+                _messages.value = msgs
+                loadPhotosForIds(msgs.map { it.senderObjectId })
+                loadMessageImages(msgs)
             } catch (e: Exception) {
                 _error.value = "Failed to load messages: ${e.message}"
             } finally {
@@ -113,9 +137,10 @@ class ChatsViewModel @Inject constructor(
                         fresh.lastOrNull()?.id != _messages.value.lastOrNull()?.id
                     ) {
                         _messages.value = fresh
-                        loadPhotosForIds(fresh.filter { !it.isFromMe }.map { it.senderObjectId })
+                        loadPhotosForIds(fresh.map { it.senderObjectId })
+                        loadMessageImages(fresh)
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) { }
             }
         }
     }
@@ -127,9 +152,11 @@ class ChatsViewModel @Inject constructor(
 
     fun sendMessage(chatId: String, content: String) {
         if (content.isBlank()) return
+
         val newMsg = ChatMessage(
             id = "local-${System.currentTimeMillis()}",
             content = content,
+            contentHtml = content.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>"),
             senderName = "You",
             senderId = "me",
             timestamp = java.time.LocalDateTime.now(),
@@ -146,28 +173,34 @@ class ChatsViewModel @Inject constructor(
         }
     }
 
-    private fun loadPhotosForIds(userIds: List<String>) {
-        val idsToLoad = userIds
-            .filter { it.isNotBlank() }
-            .distinct()
-            .filter { it !in _photos.value }
-            .take(20)
+    private fun loadMessageImages(messages: List<ChatMessage>) {
+        loadBitmaps(messages.flatMap { it.imageUrls }, _messageImages) { api.fetchImage(it) }
+    }
 
-        if (idsToLoad.isEmpty()) return
+    private fun loadPhotosForIds(userIds: List<String>) {
+        loadBitmaps(userIds.filter { it.isNotBlank() }, _photos) { api.getProfilePhoto(it) }
+    }
+
+    private fun loadBitmaps(
+        keys: List<String>,
+        target: MutableStateFlow<Map<String, ImageBitmap>>,
+        fetcher: suspend (String) -> ByteArray?,
+    ) {
+        val toLoad = keys.distinct().filter { it !in target.value }.take(30)
+        if (toLoad.isEmpty()) return
 
         viewModelScope.launch {
-            val loaded = idsToLoad.map { userId ->
+            val loaded = toLoad.map { key ->
                 async {
-                    val bytes = api.getProfilePhoto(userId)
-                    if (bytes != null) {
-                        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                        if (bmp != null) userId to bmp.asImageBitmap() else null
-                    } else null
+                    fetcher(key)?.let { bytes ->
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                            ?.let { key to it.asImageBitmap() }
+                    }
                 }
             }.awaitAll().filterNotNull().toMap()
 
             if (loaded.isNotEmpty()) {
-                _photos.update { it + loaded }
+                target.update { it + loaded }
             }
         }
     }

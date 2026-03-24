@@ -75,6 +75,9 @@ dependencies {
     // Image loading
     implementation("io.coil-kt:coil-compose:2.7.0")
 
+    // HTML parsing
+    implementation("org.jsoup:jsoup:1.22.1")
+
     // Browser (CustomTab for OAuth)
     implementation("androidx.browser:browser:1.9.0")
 

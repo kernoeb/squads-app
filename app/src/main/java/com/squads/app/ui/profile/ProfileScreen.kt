@@ -22,6 +22,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.squads.app.ui.components.Avatar
@@ -31,6 +32,7 @@ import com.squads.app.viewmodel.AuthViewModel
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
+    profilePhoto: ImageBitmap? = null,
     onBack: () -> Unit,
 ) {
     val userName by authViewModel.userName.collectAsState()
@@ -49,7 +51,7 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth().padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Avatar(name = userName ?: "User", size = 80.dp)
+            Avatar(name = userName ?: "User", size = 80.dp, photo = profilePhoto)
 
             Spacer(Modifier.height(16.dp))
 
