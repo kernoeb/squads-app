@@ -6,6 +6,7 @@ import com.squads.app.data.ChatConversation
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.NetworkMonitor
 import com.squads.app.data.TeamsApiClient
+import com.squads.app.data.TrouterClient
 import com.squads.app.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -25,6 +26,7 @@ class ChatsViewModel
         private val api: TeamsApiClient,
         private val chatRepository: ChatRepository,
         private val networkMonitor: NetworkMonitor,
+        private val trouterClient: TrouterClient,
     ) : ViewModel() {
         val chats: StateFlow<List<ChatConversation>> =
             chatRepository
@@ -54,11 +56,15 @@ class ChatsViewModel
         private var myDisplayName: String? = null
         private var chatPollingJob: Job? = null
         private var messagePollingJob: Job? = null
+        private var chatRefreshJob: Job? = null
+        private var messageRefreshJob: Job? = null
 
         init {
             refreshChats()
             startChatPolling()
             loadMyInfo()
+            trouterClient.start()
+            collectTrouterEvents()
         }
 
         private fun loadMyInfo() {
@@ -86,12 +92,55 @@ class ChatsViewModel
             }
         }
 
+        private fun collectTrouterEvents() {
+            viewModelScope.launch {
+                trouterClient.events.collect { event ->
+                    when (event) {
+                        is TrouterClient.Event.NewMessage -> onTrouterMessage(event)
+                        is TrouterClient.Event.Typing -> {}
+                        is TrouterClient.Event.Connected,
+                        is TrouterClient.Event.Disconnected,
+                        -> {}
+                    }
+                }
+            }
+        }
+
+        private fun onTrouterMessage(event: TrouterClient.Event.NewMessage) {
+            // Debounce chat list refresh (coalesces rapid-fire messages)
+            chatRefreshJob?.cancel()
+            chatRefreshJob =
+                viewModelScope.launch {
+                    delay(300)
+                    api.invalidateCache()
+                    try {
+                        chatRepository.refreshChats()
+                    } catch (_: Exception) {
+                    }
+                }
+            // Debounce message refresh for the selected chat
+            if (event.chatId == _selectedChat.value?.id) {
+                val chatId = event.chatId
+                messageRefreshJob?.cancel()
+                messageRefreshJob =
+                    viewModelScope.launch {
+                        delay(300)
+                        if (chatId != _selectedChat.value?.id) return@launch
+                        try {
+                            val fresh = chatRepository.refreshMessages(chatId)
+                            _messages.value = mergeWithOptimistic(fresh)
+                        } catch (_: Exception) {
+                        }
+                    }
+            }
+        }
+
         private fun startChatPolling() {
             chatPollingJob?.cancel()
             chatPollingJob =
                 viewModelScope.launch {
                     while (isActive) {
-                        delay(15_000)
+                        delay(if (trouterClient.isConnected.value) 60_000 else 15_000)
                         if (!networkMonitor.isOnline.value) continue
                         try {
                             chatRepository.refreshChats()
@@ -131,7 +180,7 @@ class ChatsViewModel
             messagePollingJob =
                 viewModelScope.launch {
                     while (isActive) {
-                        delay(10_000)
+                        delay(if (trouterClient.isConnected.value) 30_000 else 10_000)
                         if (!networkMonitor.isOnline.value) continue
                         try {
                             val fresh = chatRepository.refreshMessages(chatId)

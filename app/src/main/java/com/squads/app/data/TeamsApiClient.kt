@@ -154,6 +154,9 @@ class TeamsApiClient
 
         private suspend fun graphGet(path: String) = authenticatedGet(path, SCOPE_GRAPH)
 
+        /** IC3 token for Trouter auth + registrar. */
+        suspend fun getIc3Token(): String = getToken(SCOPE_IC3)
+
         /** Public token accessor for Coil auth interceptor. */
         suspend fun getTokenForUrl(url: String): String? =
             when {
@@ -192,6 +195,51 @@ class TeamsApiClient
             }
         }
 
+        /**
+         * Fallback for external/cross-tenant users: Graph `/users/{id}` fails (404)
+         * because the objectId belongs to another tenant. Fetch a few messages from
+         * the chat to extract `imdisplayname` for the unresolved user.
+         */
+        private suspend fun resolveViaMessages(
+            rawChats: JSONArray,
+            unresolved: Set<String>,
+        ) {
+            // Map each unresolved userId → chatId it belongs to
+            val targets = mutableListOf<Pair<String, String>>() // chatId to userId
+            for (chat in rawChats.objects()) {
+                if (chat.optBoolean("isConversationDeleted", false)) continue
+                val members = chat.optJSONArray("members") ?: continue
+                for (m in members.objects()) {
+                    val objId = m.str("objectId")
+                    if (objId in unresolved && !targets.any { it.second == objId }) {
+                        targets += chat.optString("id") to objId
+                    }
+                }
+            }
+            coroutineScope {
+                targets.take(10).map { (chatId, userId) ->
+                    async {
+                        try {
+                            val url = "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations/$chatId/messages?pageSize=5"
+                            val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
+                            val messages = json.optJSONArray("messages") ?: return@async
+                            for (msg in messages.objects()) {
+                                val from = msg.optString("from", "")
+                                if (userId in from) {
+                                    val name = msg.str("imdisplayname")
+                                    if (name.isNotEmpty()) {
+                                        userNameCache.putIfAbsent(userId, name)
+                                        return@async
+                                    }
+                                }
+                            }
+                        } catch (_: Exception) {
+                        }
+                    }
+                }.awaitAll()
+            }
+        }
+
         // ─── User details (chats + teams) ────────────────────────────
 
         /**
@@ -224,6 +272,12 @@ class TeamsApiClient
                 coroutineScope {
                     idsToResolve.take(30).map { async { resolveUserName(it) } }.awaitAll()
                 }
+            }
+
+            // Fallback: resolve remaining via chat messages (cross-tenant users)
+            val stillUnresolved = idsToResolve.filterTo(mutableSetOf()) { !userNameCache.containsKey(it) }
+            if (stillUnresolved.isNotEmpty()) {
+                resolveViaMessages(rawChats, stillUnresolved)
             }
 
             val chats = parseChatList(rawChats, myUserId)
@@ -352,9 +406,11 @@ class TeamsApiClient
             val memberNames =
                 members
                     .objects()
-                    .map { it.str("objectId") }
-                    .filter { it.isNotEmpty() && it != myUserId }
-                    .mapNotNull { userNameCache[it] }
+                    .filter { it.str("objectId").let { id -> id.isNotEmpty() && id != myUserId } }
+                    .mapNotNull { m ->
+                        userNameCache[m.str("objectId")]
+                            ?: m.str("displayName").ifEmpty { null }
+                    }
 
             if (memberNames.isNotEmpty()) {
                 return when {
