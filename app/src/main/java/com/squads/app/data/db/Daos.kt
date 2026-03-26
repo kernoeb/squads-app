@@ -15,6 +15,15 @@ interface ChatDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertChats(chats: List<ChatConversationEntity>)
 
+    @Query("DELETE FROM chats WHERE id NOT IN (:keepIds)")
+    suspend fun deleteChatsNotIn(keepIds: List<String>)
+
+    @Transaction
+    suspend fun replaceChats(chats: List<ChatConversationEntity>) {
+        insertChats(chats)
+        deleteChatsNotIn(chats.map { it.id })
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessages(messages: List<ChatMessageEntity>)
 

@@ -228,6 +228,15 @@ fun ChatDetailScreen(
                                     prevMsg.senderId != msg.senderId ||
                                     prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()
 
+                            item(key = msg.id, contentType = "message") {
+                                MessageRow(
+                                    msg = msg,
+                                    senderPhotoUrl = graphProfilePhotoUrl(msg.senderObjectId),
+                                    isFirstInGroup = isFirstInGroup,
+                                    onImageClick = { url -> fullscreenImageUrl = url },
+                                )
+                            }
+
                             if (prevMsg != null && prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()) {
                                 item(key = "date-${msg.timestamp.toLocalDate()}", contentType = "dateSeparator") {
                                     DateSeparator(msg.timestamp.toLocalDate())
@@ -238,15 +247,6 @@ fun ChatDetailScreen(
                                 item(key = "date-first-${msg.timestamp.toLocalDate()}", contentType = "dateSeparator") {
                                     DateSeparator(msg.timestamp.toLocalDate())
                                 }
-                            }
-
-                            item(key = msg.id, contentType = "message") {
-                                MessageRow(
-                                    msg = msg,
-                                    senderPhotoUrl = graphProfilePhotoUrl(msg.senderObjectId),
-                                    isFirstInGroup = isFirstInGroup,
-                                    onImageClick = { url -> fullscreenImageUrl = url },
-                                )
                             }
                         }
 

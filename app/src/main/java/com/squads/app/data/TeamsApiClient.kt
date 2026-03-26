@@ -27,6 +27,7 @@ import javax.inject.Singleton
 private const val SCOPE_GRAPH = "https://graph.microsoft.com/.default"
 private const val SCOPE_CHATSVCAGG = "https://chatsvcagg.teams.microsoft.com/.default"
 private const val SCOPE_IC3 = "https://ic3.teams.office.com/.default"
+private val FRACTIONAL_SECONDS_REGEX = Regex("(\\.\\d{3})\\d+")
 
 const val USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0"
 
@@ -668,14 +669,19 @@ class TeamsApiClient
 
         private fun parseTimestamp(ts: String): LocalDateTime {
             if (ts.isBlank()) return LocalDateTime.MIN
+            // Truncate fractional seconds beyond 3 digits (.NET sends 7) for Instant.parse compat
+            val normalized = ts.replace(FRACTIONAL_SECONDS_REGEX, "$1")
             return try {
-                LocalDateTime.ofInstant(Instant.parse(ts), ZoneId.systemDefault())
+                LocalDateTime.ofInstant(Instant.parse(normalized), ZoneId.systemDefault())
             } catch (_: Exception) {
                 try {
-                    LocalDateTime.parse(ts.removeSuffix("Z"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                    // Parse as local then convert from UTC → device timezone
+                    val local = LocalDateTime.parse(normalized.removeSuffix("Z"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                    local.atZone(java.time.ZoneOffset.UTC)
+                        .withZoneSameInstant(ZoneId.systemDefault())
+                        .toLocalDateTime()
                 } catch (_: Exception) {
-                    ts
-                        .toLongOrNull()
+                    ts.toLongOrNull()
                         ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
                         ?: LocalDateTime.MIN
                 }

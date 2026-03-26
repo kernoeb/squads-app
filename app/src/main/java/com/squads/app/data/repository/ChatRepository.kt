@@ -22,7 +22,7 @@ class ChatRepository
 
         suspend fun refreshChats(): List<ChatConversation> {
             val (chats, _) = api.getUserDetails()
-            chatDao.insertChats(chats.map { it.toEntity() })
+            chatDao.replaceChats(chats.map { it.toEntity() })
             return chats
         }
 
