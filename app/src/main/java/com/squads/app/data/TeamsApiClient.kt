@@ -603,17 +603,22 @@ class TeamsApiClient
         suspend fun sendMessage(
             conversationId: String,
             content: String,
+            rawHtml: Boolean = false,
         ) {
             val token = getToken(SCOPE_IC3)
             val me = getMe()
             val now = Instant.now().toString()
             val messageId = (Math.random() * Long.MAX_VALUE).toLong().toString()
             val htmlContent =
-                content
-                    .replace("&", "&amp;")
-                    .replace("<", "&lt;")
-                    .replace(">", "&gt;")
-                    .replace("\n", "<br>")
+                if (rawHtml) {
+                    content
+                } else {
+                    content
+                        .replace("&", "&amp;")
+                        .replace("<", "&lt;")
+                        .replace(">", "&gt;")
+                        .replace("\n", "<br>")
+                }
 
             val body =
                 JSONObject().apply {

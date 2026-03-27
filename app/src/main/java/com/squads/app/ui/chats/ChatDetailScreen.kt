@@ -6,14 +6,18 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -31,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -44,6 +49,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -75,11 +81,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
@@ -99,6 +110,7 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalHazeMaterialsApi::class)
 @Composable
@@ -114,6 +126,9 @@ fun ChatDetailScreen(
     val listState = rememberLazyListState()
     val hazeState = remember { HazeState() }
     val scope = rememberCoroutineScope()
+    var replyingTo by remember { mutableStateOf<ChatMessage?>(null) }
+    var lastReplyTarget by remember { mutableStateOf<ChatMessage?>(null) }
+    if (replyingTo != null) lastReplyTarget = replyingTo
 
     val showScrollToBottom by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 3 }
@@ -235,12 +250,14 @@ fun ChatDetailScreen(
                                     prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()
 
                             item(key = msg.id, contentType = "message") {
-                                MessageRow(
-                                    msg = msg,
-                                    senderPhotoUrl = graphProfilePhotoUrl(msg.senderObjectId),
-                                    isFirstInGroup = isFirstInGroup,
-                                    onImageClick = { url -> fullscreenImageUrl = url },
-                                )
+                                SwipeToReply(onReply = { replyingTo = msg }) {
+                                    MessageRow(
+                                        msg = msg,
+                                        senderPhotoUrl = graphProfilePhotoUrl(msg.senderObjectId),
+                                        isFirstInGroup = isFirstInGroup,
+                                        onImageClick = { url -> fullscreenImageUrl = url },
+                                    )
+                                }
                             }
 
                             if (prevMsg != null && prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()) {
@@ -286,13 +303,27 @@ fun ChatDetailScreen(
                 }
             }
 
+            AnimatedVisibility(
+                visible = replyingTo != null,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            ) {
+                lastReplyTarget?.let { msg ->
+                    ReplyBanner(
+                        message = msg,
+                        onDismiss = { replyingTo = null },
+                    )
+                }
+            }
+
             MessageInput(
                 value = inputText,
                 onValueChange = { inputText = it },
                 onSend = {
                     if (inputText.isNotBlank()) {
-                        viewModel.sendMessage(chat?.id ?: "", inputText)
+                        viewModel.sendMessage(chat?.id ?: "", inputText, replyingTo)
                         inputText = ""
+                        replyingTo = null
                     }
                 },
                 hazeState = hazeState,
@@ -474,6 +505,122 @@ private fun MessageInput(
                 Icons.AutoMirrored.Filled.Send,
                 contentDescription = "Send",
                 modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SwipeToReply(
+    onReply: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val offsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val thresholdPx = remember(density) { with(density) { 72.dp.toPx() } }
+    val haptic = LocalHapticFeedback.current
+    var pastThreshold by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Icon(
+            Icons.AutoMirrored.Filled.Reply,
+            contentDescription = null,
+            modifier =
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 20.dp)
+                    .size(24.dp)
+                    .graphicsLayer {
+                        val p = (-offsetX.value / thresholdPx).coerceIn(0f, 1f)
+                        alpha = p
+                        scaleX = 0.5f + 0.5f * p
+                        scaleY = 0.5f + 0.5f * p
+                    },
+            tint =
+                if (pastThreshold) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+        )
+
+        Box(
+            modifier =
+                Modifier
+                    .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = {
+                                if (pastThreshold) onReply()
+                                pastThreshold = false
+                                scope.launch { offsetX.animateTo(0f) }
+                            },
+                            onDragCancel = {
+                                pastThreshold = false
+                                scope.launch { offsetX.animateTo(0f) }
+                            },
+                        ) { _, dragAmount ->
+                            val maxDrag = -thresholdPx * 1.3f
+                            val newValue =
+                                (offsetX.value + dragAmount).coerceIn(maxDrag, 0f)
+                            scope.launch { offsetX.snapTo(newValue) }
+                            val nowPast = newValue <= -thresholdPx
+                            if (nowPast && !pastThreshold) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                            pastThreshold = nowPast
+                        }
+                    },
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun ReplyBanner(
+    message: ChatMessage,
+    onDismiss: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .width(3.dp)
+                    .height(32.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+        )
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                if (message.isFromMe) "You" else message.senderName,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Text(
+                message.content,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Cancel reply",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

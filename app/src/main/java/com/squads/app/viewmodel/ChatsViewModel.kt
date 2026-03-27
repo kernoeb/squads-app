@@ -214,34 +214,65 @@ class ChatsViewModel
         fun sendMessage(
             chatId: String,
             content: String,
+            replyTo: ChatMessage? = null,
         ) {
             if (content.isBlank()) return
 
             val senderObjectId = myUserId ?: ""
             val senderDisplayName = myDisplayName ?: "You"
 
+            val escapedContent =
+                content
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\n", "<br>")
+
+            val htmlContent =
+                if (replyTo != null) {
+                    val replyName =
+                        if (replyTo.isFromMe) senderDisplayName else replyTo.senderName
+                    val preview =
+                        replyTo.content
+                            .take(200)
+                            .replace("&", "&amp;")
+                            .replace("<", "&lt;")
+                            .replace(">", "&gt;")
+                    "<blockquote itemtype=\"http://schema.skype.com/Reply\">" +
+                        "<strong>$replyName</strong>" +
+                        "<div itemprop=\"preview\">$preview</div>" +
+                        "</blockquote>" +
+                        "<p>$escapedContent</p>"
+                } else {
+                    escapedContent
+                }
+
             val newMsg =
                 ChatMessage(
                     id = "local-${System.currentTimeMillis()}",
                     content = content,
-                    contentHtml =
-                        content
-                            .replace("&", "&amp;")
-                            .replace("<", "&lt;")
-                            .replace(">", "&gt;")
-                            .replace("\n", "<br>"),
+                    contentHtml = htmlContent,
                     senderName = senderDisplayName,
                     senderId = "me",
                     senderObjectId = senderObjectId,
                     timestamp = java.time.LocalDateTime.now(),
                     isFromMe = true,
+                    replyToName =
+                        replyTo?.let {
+                            if (it.isFromMe) senderDisplayName else it.senderName
+                        },
+                    replyToPreview = replyTo?.content?.take(200),
                 )
             _messages.value = _messages.value + newMsg
 
             viewModelScope.launch {
                 try {
                     chatRepository.insertLocalMessage(chatId, newMsg)
-                    api.sendMessage(chatId, content)
+                    if (replyTo != null) {
+                        api.sendMessage(chatId, htmlContent, rawHtml = true)
+                    } else {
+                        api.sendMessage(chatId, content)
+                    }
                 } catch (e: Exception) {
                     _error.value = "Failed to send: ${e.message}"
                 }
