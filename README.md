@@ -6,16 +6,12 @@ Squads lets you access your chats, emails, calendar, and teams through a clean, 
 
 ## Features
 
-- **Chats** — real-time conversations with message polling, inline images, reactions, reply quotes, and profile photos
-- **Mail** — inbox with importance badges, attachment indicators, and detail view
-- **Calendar** — today/week view with event details, attendees, and meeting links
-- **Teams** — hierarchical navigation through teams, channels, and messages
-- **Search** — cross-service search across chats and mail
+- **Chats** — real-time conversations via Trouter push notifications, inline images, reactions, swipe-to-reply with blockquotes, and profile photos
+- **Mail** — inbox with importance badges, attachment indicators, read/unread state, and detail view
+- **Calendar** — today/week toggle with color-coded response status, event details, attendees, and online meeting links
+- **Teams** — browse teams, channels, and threaded messages with reactions and reply counts
+- **Search** — unified search across chats, mail, and calendar events
 - **Demo mode** — explore the app with realistic sample data, no account needed
-
-## Screenshots
-
-*Coming soon*
 
 ## Requirements
 
@@ -27,7 +23,7 @@ Squads lets you access your chats, emails, calendar, and teams through a clean, 
 
 ```bash
 # Clone
-git clone https://github.com/user/squads-app.git
+git clone https://github.com/nomusik/squads-app.git
 cd squads-app
 
 # Build and install on a connected device
@@ -44,27 +40,36 @@ On first launch, sign in with a Microsoft work/school account via the device cod
 ```bash
 just              # list all available commands
 just build        # build debug APK
+just release      # build release APK
 just run          # build + install + launch
 just lint         # run lint checks
 just ktlint       # check code style
 just format       # auto-format code
 just test         # run unit tests
+just test-device  # run instrumented tests
 just logcat       # filtered logcat output
 just restart      # kill + relaunch
+just clean        # clean build artifacts
+just deps         # show project dependencies
 ```
 
 ## Tech stack
 
 | Layer | Tech |
 |-------|------|
-| UI | Jetpack Compose, Material 3, Material You |
-| Navigation | Navigation Compose |
+| UI | Jetpack Compose, Material 3 |
+| Navigation | Navigation 3 (type-safe routes, kotlinx.serialization) |
 | Architecture | MVVM, StateFlow, coroutines |
+| Networking | OkHttp 5 |
+| Images | Coil 3 |
+| Persistence | Room |
 | DI | Hilt |
 | Auth | Microsoft OAuth device code flow |
-| API | Microsoft Graph, Teams Chat Service, IC3 |
+| API | Microsoft Graph, Teams Chat Service, Trouter |
 | HTML | Jsoup |
 | Effects | Haze (glassmorphism nav bar) |
+| Performance | Baseline profiles |
+| Splash | AndroidX SplashScreen |
 | Linter | ktlint via ktlint-gradle |
 | Font | Inter via Google Fonts |
 
@@ -73,14 +78,15 @@ just restart      # kill + relaunch
 ```
 app/src/main/java/com/squads/app/
 ├── auth/           # OAuth flow & token management
-├── data/           # API client, data models, HTML parser, emoji manager
+├── data/           # API client, data models, Room DB, HTML parser
 ├── di/             # Hilt dependency injection
 ├── ui/
 │   ├── auth/       # Login screen
 │   ├── calendar/   # Calendar views
 │   ├── chats/      # Chat list & detail
-│   ├── components/ # Shared UI (Avatar, badges, loading)
+│   ├── components/ # Shared UI (Avatar, ScreenHeader, badges, loading)
 │   ├── mail/       # Mail list & detail
+│   ├── navigation/ # Navigation graph & type-safe routes
 │   ├── profile/    # Profile & settings
 │   ├── search/     # Search screen
 │   ├── teams/      # Teams, channels, messages
