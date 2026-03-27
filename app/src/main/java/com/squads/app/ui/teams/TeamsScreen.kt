@@ -2,6 +2,10 @@ package com.squads.app.ui.teams
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -31,6 +35,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -181,11 +186,18 @@ private fun ChannelsListView(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChannelMessagesView(messages: List<ChannelMessage>) {
-    LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
-        item { Spacer(Modifier.height(8.dp)) }
+    val bottomNavHeight = 80.dp
+    val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        reverseLayout = true,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = bottomNavHeight + systemNavInset + 16.dp),
+    ) {
         items(messages, key = { it.id }, contentType = { "channelMessage" }) { msg ->
             Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -224,6 +236,6 @@ private fun ChannelMessagesView(messages: List<ChannelMessage>) {
                 }
             }
         }
-        item { Spacer(Modifier.height(80.dp)) }
+        item { Spacer(Modifier.height(8.dp)) }
     }
 }

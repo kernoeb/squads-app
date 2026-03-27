@@ -568,21 +568,28 @@ class TeamsApiClient
             teamId: String,
             channelId: String,
         ): List<ChannelMessage> {
-            val url = "https://teams.microsoft.com/api/csa/emea/api/v3/teams/$teamId/channels/$channelId/messages"
+            val url = "https://teams.microsoft.com/api/csa/emea/api/v2/teams/$teamId/channels/$channelId"
             val json = JSONObject(authenticatedGet(url, SCOPE_CHATSVCAGG))
-            val arr = json.optJSONArray("messages") ?: json.optJSONArray("replyChains") ?: return emptyList()
+            val chains = json.optJSONArray("replyChains") ?: return emptyList()
 
-            return arr.objects().mapNotNull { m ->
-                val content = HtmlParser.parseMessage(m.str("content")).text
-                if (content.isBlank()) return@mapNotNull null
+            return chains.objects().mapNotNull { chain ->
+                val msgs = chain.optJSONArray("messages") ?: return@mapNotNull null
+                val replyCount = (msgs.length() - 1).coerceAtLeast(0)
+                msgs.objects().firstNotNullOfOrNull { m ->
+                    val content = HtmlParser.parseMessage(m.str("content")).text
+                    if (content.isBlank()) return@firstNotNullOfOrNull null
+                    val sender = m.str("imdisplayname").ifEmpty { m.str("imDisplayName", "") }
+                    if (sender.isEmpty()) return@firstNotNullOfOrNull null
 
-                ChannelMessage(
-                    id = m.optString("id", ""),
-                    content = content,
-                    senderName = m.str("imdisplayname").ifEmpty { m.str("imDisplayName", "Unknown") },
-                    timestamp = parseTimestamp(m.str("composeTime").ifEmpty { m.str("composetime") }),
-                    reactions = parseReactions(m.optJSONObject("properties")?.optJSONArray("emotions")),
-                )
+                    ChannelMessage(
+                        id = m.optString("id", ""),
+                        content = content,
+                        senderName = sender,
+                        timestamp = parseTimestamp(m.str("composeTime").ifEmpty { m.str("composetime") }),
+                        reactions = parseReactions(m.optJSONObject("properties")?.optJSONArray("emotions")),
+                        replyCount = replyCount,
+                    )
+                }
             }
         }
 
