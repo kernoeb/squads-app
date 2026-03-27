@@ -1,5 +1,6 @@
 package com.squads.app.data
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,7 +22,6 @@ import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONArray
 import org.json.JSONObject
-import android.util.Log
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.UUID
@@ -62,11 +62,18 @@ class TrouterClient
         private val _isConnected = MutableStateFlow(false)
         val isConnected: StateFlow<Boolean> = _isConnected
 
-        @Volatile private var ws: WebSocket? = null
+        @Volatile
+        private var ws: WebSocket? = null
         private var epid = UUID.randomUUID().toString()
-        @Volatile private var reconnectUrl: String? = null
-        @Volatile private var scope: CoroutineScope? = null
-        @Volatile private var backoffMs = 1000L
+
+        @Volatile
+        private var reconnectUrl: String? = null
+
+        @Volatile
+        private var scope: CoroutineScope? = null
+
+        @Volatile
+        private var backoffMs = 1000L
         private var reconnectJob: Job? = null
         private var heartbeatJob: Job? = null
 
@@ -183,7 +190,7 @@ class TrouterClient
 
                     // Ping → pong
                     "\"name\":\"ping\"" in text -> {
-                        frameSeq(text)?.let { webSocket.send("6:::${it}+[\"pong\"]") }
+                        frameSeq(text)?.let { webSocket.send("6:::$it+[\"pong\"]") }
                     }
 
                     // Notification payload (type 3)

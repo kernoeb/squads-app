@@ -218,26 +218,29 @@ class TeamsApiClient
                 }
             }
             coroutineScope {
-                targets.take(10).map { (chatId, userId) ->
-                    async {
-                        try {
-                            val url = "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations/$chatId/messages?pageSize=5"
-                            val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
-                            val messages = json.optJSONArray("messages") ?: return@async
-                            for (msg in messages.objects()) {
-                                val from = msg.optString("from", "")
-                                if (userId in from) {
-                                    val name = msg.str("imdisplayname")
-                                    if (name.isNotEmpty()) {
-                                        userNameCache.putIfAbsent(userId, name)
-                                        return@async
+                targets
+                    .take(10)
+                    .map { (chatId, userId) ->
+                        async {
+                            try {
+                                val url =
+                                    "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations/$chatId/messages?pageSize=5"
+                                val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
+                                val messages = json.optJSONArray("messages") ?: return@async
+                                for (msg in messages.objects()) {
+                                    val from = msg.optString("from", "")
+                                    if (userId in from) {
+                                        val name = msg.str("imdisplayname")
+                                        if (name.isNotEmpty()) {
+                                            userNameCache.putIfAbsent(userId, name)
+                                            return@async
+                                        }
                                     }
                                 }
+                            } catch (_: Exception) {
                             }
-                        } catch (_: Exception) {
                         }
-                    }
-                }.awaitAll()
+                    }.awaitAll()
             }
         }
 
@@ -677,11 +680,13 @@ class TeamsApiClient
                 try {
                     // Parse as local then convert from UTC → device timezone
                     val local = LocalDateTime.parse(normalized.removeSuffix("Z"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                    local.atZone(java.time.ZoneOffset.UTC)
+                    local
+                        .atZone(java.time.ZoneOffset.UTC)
                         .withZoneSameInstant(ZoneId.systemDefault())
                         .toLocalDateTime()
                 } catch (_: Exception) {
-                    ts.toLongOrNull()
+                    ts
+                        .toLongOrNull()
                         ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
                         ?: LocalDateTime.MIN
                 }

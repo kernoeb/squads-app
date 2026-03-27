@@ -60,6 +60,7 @@ class ChatsViewModel
         private var messageRefreshJob: Job? = null
 
         init {
+            api.invalidateCache()
             refreshChats()
             startChatPolling()
             loadMyInfo()
@@ -170,8 +171,16 @@ class ChatsViewModel
         private fun mergeWithOptimistic(server: List<ChatMessage>): List<ChatMessage> {
             val pending = _messages.value.filter { it.id.startsWith("local-") }
             if (pending.isEmpty()) return server
-            val latestServerTime = server.maxOfOrNull { it.timestamp } ?: return server + pending
-            val stillPending = pending.filter { it.timestamp.isAfter(latestServerTime) }
+            val matched = mutableSetOf<String>()
+            val stillPending =
+                pending.filter { local ->
+                    val echo =
+                        server.firstOrNull { s ->
+                            s.isFromMe && s.content == local.content && s.id !in matched
+                        }
+                    if (echo != null) matched.add(echo.id)
+                    echo == null
+                }
             return server + stillPending
         }
 
