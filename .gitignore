@@ -12,3 +12,10 @@ local.properties
 *.aab
 *.salive
 *.kotlin_module
+META-INF/
+.DS_Store
+*.jks
+*.keystore
+*.env
+.env
+*.hprof

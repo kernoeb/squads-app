@@ -23,7 +23,7 @@ Squads lets you access your chats, emails, calendar, and teams through a clean, 
 
 ```bash
 # Clone
-git clone https://github.com/nomusik/squads-app.git
+git clone https://github.com/kernoeb/squads-app.git
 cd squads-app
 
 # Build and install on a connected device
@@ -96,4 +96,4 @@ app/src/main/java/com/squads/app/
 
 ## License
 
-Private — not open source.
+[MIT](LICENSE)

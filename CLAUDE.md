@@ -29,7 +29,7 @@ MVVM with Jetpack Compose. Single-activity app (`MainActivity`) → `SquadsApp()
 
 **Real-time**: `TrouterClient` maintains a WebSocket to Teams' Trouter service for instant message notifications. Falls back to polling (15-60s for chat list, 10-30s for active chat). `NetworkMonitor` provides reactive connectivity state.
 
-**Auth**: Microsoft device code OAuth flow via `AuthManager`. Uses the official Teams client ID. Tokens cached in-memory by scope with 60s expiry buffer, refresh token persisted in SharedPreferences.
+**Auth**: Microsoft device code OAuth flow via `AuthManager`. Uses a public client ID (no client secret). Tokens cached in-memory by scope with 60s expiry buffer, refresh token persisted in SharedPreferences.
 
 **Demo mode**: `authManager.mockLogin()` sets a sentinel refresh token (`"mock_refresh_token"`). `MockRepository` provides realistic sample data. Check `authViewModel.isDemoMode` to branch behavior.
 
