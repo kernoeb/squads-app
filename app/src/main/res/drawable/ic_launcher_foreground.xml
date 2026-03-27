@@ -4,8 +4,25 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Simple "S" letter for Squads -->
+    <!-- Back-left person -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,28 C46,28 40,33 40,40 C40,47 46,50 54,52 C62,54 68,57 68,64 C68,71 62,76 54,76 C46,76 40,71 40,64 L36,64 C36,73 44,80 54,80 C64,80 72,73 72,64 C72,55 64,52 54,50 C46,48 44,45 44,40 C44,35 48,32 54,32 C60,32 64,35 64,40 L68,40 C68,33 62,28 54,28 Z"/>
+        android:pathData="M27.5,40 a8.5,8.5 0 1,0 17,0 a8.5,8.5 0 1,0 -17,0Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M21,73 Q21,55 36,55 Q51,55 51,73Z"/>
+    <!-- Back-right person -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M63.5,40 a8.5,8.5 0 1,0 17,0 a8.5,8.5 0 1,0 -17,0Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M57,73 Q57,55 72,55 Q87,55 87,73Z"/>
+    <!-- Front-center person (larger, overlaps to unify) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43.5,51.5 a10.5,10.5 0 1,0 21,0 a10.5,10.5 0 1,0 -21,0Z"/>
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36.5,84 Q36.5,67.5 54,67.5 Q71.5,67.5 71.5,84Z"/>
 </vector>
