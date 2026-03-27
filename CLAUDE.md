@@ -25,13 +25,15 @@ MVVM with Jetpack Compose. Single-activity app (`MainActivity`) → `SquadsApp()
 
 **Navigation**: Navigation 3 with type-safe serializable routes (`ui/navigation/Routes.kt`). `NavigationState` manages independent back stacks per tab. `SharedViewModelStoreNavEntryDecorator` enables ViewModel sharing between parent/child entries.
 
-**Data flow**: `TeamsApiClient` (single API client, ~720 lines) → Repositories (`ChatRepository`, `MailRepository`) → Room DB → ViewModels expose `StateFlow` → Compose UI collects state.
+**Data flow**: `TeamsApiClient` (single API client, ~760 lines) → Repositories (`ChatRepository`, `MailRepository`) → Room DB → ViewModels expose `StateFlow` → Compose UI collects state.
 
 **Real-time**: `TrouterClient` maintains a WebSocket to Teams' Trouter service for instant message notifications. Falls back to polling (15-60s for chat list, 10-30s for active chat). `NetworkMonitor` provides reactive connectivity state.
 
 **Auth**: Microsoft device code OAuth flow via `AuthManager`. Uses a public client ID (no client secret). Tokens cached in-memory by scope with 60s expiry buffer, refresh token persisted in SharedPreferences.
 
-**Demo mode**: `authManager.mockLogin()` sets a sentinel refresh token (`"mock_refresh_token"`). `MockRepository` provides realistic sample data. Check `authViewModel.isDemoMode` to branch behavior.
+**Demo mode**: `authManager.mockLogin()` sets a sentinel refresh token (`"mock_refresh_token"`). `TeamsApiClient` checks `isDemoMode` at the top of every public API method and routes to `MockRepository` for demo data. Check `authViewModel.isDemoMode` to branch UI behavior.
+
+**Session lifecycle**: Hilt-scoped ViewModels survive logout (scoped to Activity, not Compose). Each ViewModel observes `AuthManager.onSessionStart()` (a `Flow` that emits on login after logout) to reinitialize. `ChatsViewModel` also handles logout teardown (cancel polling, stop Trouter). `AuthViewModel.logout()` orchestrates cleanup: clear Room DB + disk cache on IO, then clear API client state + memory cache, then reset auth.
 
 ## Key Conventions
 
