@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.SearchResult
 import com.squads.app.data.SearchResultType
+import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.viewmodel.SearchViewModel
 
 @Composable
@@ -42,12 +43,7 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
     val results by viewModel.results.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        Text(
-            "Search",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-        )
+        ScreenHeader("Search")
 
         OutlinedTextField(
             value = query,

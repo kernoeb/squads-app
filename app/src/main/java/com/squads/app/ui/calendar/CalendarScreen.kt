@@ -42,6 +42,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.CalendarEvent
 import com.squads.app.data.toTimeString
 import com.squads.app.ui.components.LoadingScreen
+import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.viewmodel.CalendarViewModel
 import java.time.format.DateTimeFormatter
 
@@ -61,16 +62,7 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
     }
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                "Calendar",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-            )
+        ScreenHeader("Calendar") {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = !showWeek,

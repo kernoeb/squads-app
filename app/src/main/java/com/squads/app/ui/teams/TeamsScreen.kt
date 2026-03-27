@@ -47,6 +47,7 @@ import com.squads.app.data.ChannelMessage
 import com.squads.app.data.Team
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
+import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip
 import com.squads.app.viewmodel.TeamsViewModel
@@ -110,14 +111,7 @@ private fun TeamsListView(
     onTeamClick: (Team) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        item {
-            Text(
-                "Teams",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            )
-        }
+        item { ScreenHeader("Teams") }
         items(teams, key = { it.id }, contentType = { "team" }) { team ->
             Card(
                 modifier =

@@ -33,6 +33,7 @@ import com.squads.app.data.ChatConversation
 import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
+import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.GroupAvatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.UnreadBadge
@@ -54,16 +55,7 @@ fun ChatsScreen(
 
     LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Chats",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                )
+            ScreenHeader("Chats") {
                 IconButton(onClick = onProfileClick) {
                     Icon(
                         Icons.Default.AccountCircle,

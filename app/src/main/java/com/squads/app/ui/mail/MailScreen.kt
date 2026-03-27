@@ -36,6 +36,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.MailMessage
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
+import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.ImportanceBadge
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.UnreadBadge
@@ -68,14 +69,7 @@ private fun MailListScreen(
     onMailClick: (MailMessage) -> Unit,
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
-        item {
-            Text(
-                "Mail",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
-            )
-        }
+        item { ScreenHeader("Mail") }
         items(messages, key = { it.id }, contentType = { "mail" }) { mail ->
             MailRow(mail = mail, onClick = { onMailClick(mail) })
             HorizontalDivider(
