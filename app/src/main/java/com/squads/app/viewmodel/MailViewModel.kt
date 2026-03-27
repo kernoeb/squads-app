@@ -2,6 +2,7 @@ package com.squads.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.squads.app.auth.AuthManager
 import com.squads.app.data.MailMessage
 import com.squads.app.data.TeamsApiClient
 import com.squads.app.data.repository.MailRepository
@@ -19,6 +20,7 @@ class MailViewModel
     constructor(
         private val api: TeamsApiClient,
         private val mailRepository: MailRepository,
+        private val authManager: AuthManager,
     ) : ViewModel() {
         val messages: StateFlow<List<MailMessage>> =
             mailRepository
@@ -38,6 +40,13 @@ class MailViewModel
 
         init {
             refreshMail()
+            viewModelScope.launch {
+                authManager.onSessionStart().collect {
+                    lastLoadTime = 0L
+                    _selectedMail.value = null
+                    refreshMail(forceRefresh = true)
+                }
+            }
         }
 
         fun refreshMail(forceRefresh: Boolean = false) {

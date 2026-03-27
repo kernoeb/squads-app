@@ -2,6 +2,7 @@ package com.squads.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.squads.app.auth.AuthManager
 import com.squads.app.data.SearchResult
 import com.squads.app.data.SearchResultType
 import com.squads.app.data.TeamsApiClient
@@ -19,6 +20,7 @@ class SearchViewModel
     @Inject
     constructor(
         private val api: TeamsApiClient,
+        private val authManager: AuthManager,
     ) : ViewModel() {
         private val _query = MutableStateFlow("")
         val query: StateFlow<String> = _query
@@ -28,6 +30,16 @@ class SearchViewModel
 
         private var searchJob: Job? = null
         private var lastSearchQuery: String? = null
+
+        init {
+            viewModelScope.launch {
+                authManager.onSessionStart().collect {
+                    _query.value = ""
+                    _results.value = emptyList()
+                    lastSearchQuery = null
+                }
+            }
+        }
 
         fun search(query: String) {
             _query.value = query

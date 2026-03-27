@@ -7,6 +7,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -38,12 +40,16 @@ class TeamsApiClient
         private val authManager: AuthManager,
         private val emojiManager: EmojiManager,
         private val httpClient: OkHttpClient,
+        private val mockRepository: MockRepository,
     ) {
-        private val tokenCache = mutableMapOf<String, Pair<String, Long>>()
+        private val isDemoMode: Boolean
+            get() = authManager.isDemoMode
+        private val tokenCache = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Long>>()
         private val tokenMutex = Mutex()
         private val userNameCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
-        @Volatile private var cachedMyUserId: String? = null
+        private val _myUserId = MutableStateFlow<String?>(null)
+        val myUserId: StateFlow<String?> = _myUserId
 
         private var cachedUserDetails: Pair<List<ChatConversation>, List<Team>>? = null
         private var cacheTimestamp = 0L
@@ -52,6 +58,8 @@ class TeamsApiClient
 
         private suspend fun getToken(scope: String): String =
             tokenMutex.withLock {
+                if (!active) throw Exception("Logged out")
+
                 val cached = tokenCache[scope]
                 val now = System.currentTimeMillis() / 1000
                 if (cached != null && cached.second > now + 60) {
@@ -169,10 +177,15 @@ class TeamsApiClient
         // ─── User / profile ──────────────────────────────────────────
 
         suspend fun getMe(): UserProfile {
+            if (isDemoMode) {
+                val mock = mockRepository.getMe()
+                _myUserId.value = mock.id
+                return mock
+            }
             emojiManager.init()
             val json = JSONObject(graphGet("https://graph.microsoft.com/v1.0/me?\$select=id,displayName,mail,jobTitle"))
             val id = json.str("id")
-            cachedMyUserId = id
+            _myUserId.value = id
             return UserProfile(
                 id = id,
                 displayName = json.str("displayName", "User"),
@@ -182,8 +195,8 @@ class TeamsApiClient
         }
 
         private suspend fun getMyUserId(): String {
-            cachedMyUserId?.let { return it }
-            return getMe().id.also { cachedMyUserId = it }
+            _myUserId.value?.let { return it }
+            return getMe().id.also { _myUserId.value = it }
         }
 
         private suspend fun resolveUserName(userId: String): String? {
@@ -251,6 +264,7 @@ class TeamsApiClient
          * so ChatsViewModel and TeamsViewModel don't duplicate the call.
          */
         suspend fun getUserDetails(): Pair<List<ChatConversation>, List<Team>> {
+            if (isDemoMode) return mockRepository.getChats() to mockRepository.getTeams()
             val now = System.currentTimeMillis()
             cachedUserDetails?.let { if (now - cacheTimestamp < 30_000) return it }
 
@@ -293,6 +307,22 @@ class TeamsApiClient
 
         fun invalidateCache() {
             cachedUserDetails = null
+            cacheTimestamp = 0L
+        }
+
+        @Volatile
+        private var active = true
+
+        fun clearAll() {
+            active = false
+            tokenCache.clear()
+            userNameCache.clear()
+            _myUserId.value = null
+            invalidateCache()
+        }
+
+        fun activate() {
+            active = true
         }
 
         private fun collectUnresolvedMemberIds(
@@ -439,6 +469,7 @@ class TeamsApiClient
         // ─── Chat messages ───────────────────────────────────────────
 
         suspend fun getChatMessages(threadId: String): List<ChatMessage> {
+            if (isDemoMode) return mockRepository.getMessages(threadId)
             val url = "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations/$threadId/messages?pageSize=200"
             val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
             val messages = json.optJSONArray("messages") ?: return emptyList()
@@ -485,13 +516,16 @@ class TeamsApiClient
         // ─── Mail ────────────────────────────────────────────────────
 
         suspend fun getMail(limit: Int = 25): List<MailMessage> {
+            if (isDemoMode) return mockRepository.getMail()
             val url = "https://graph.microsoft.com/v1.0/me/messages?\$top=$limit&\$orderby=receivedDateTime desc"
             val arr = JSONObject(graphGet(url)).optJSONArray("value") ?: return emptyList()
             return arr.objects().map(::parseMailMessage)
         }
 
-        suspend fun getMailDetail(messageId: String): MailMessage =
-            parseMailMessage(JSONObject(graphGet("https://graph.microsoft.com/v1.0/me/messages/$messageId")))
+        suspend fun getMailDetail(messageId: String): MailMessage {
+            if (isDemoMode) return mockRepository.getMailDetail(messageId)
+            return parseMailMessage(JSONObject(graphGet("https://graph.microsoft.com/v1.0/me/messages/$messageId")))
+        }
 
         private fun parseMailMessage(m: JSONObject): MailMessage {
             val from = m.optJSONObject("from")?.optJSONObject("emailAddress")
@@ -519,6 +553,7 @@ class TeamsApiClient
         // ─── Calendar ────────────────────────────────────────────────
 
         suspend fun getEvents(days: Int): List<CalendarEvent> {
+            if (isDemoMode) return if (days <= 1) mockRepository.getTodayEvents() else mockRepository.getWeekEvents()
             val now = ZonedDateTime.now(ZoneId.of("UTC"))
             val start = now.toLocalDate().atStartOfDay(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_INSTANT)
             val end =
@@ -568,6 +603,7 @@ class TeamsApiClient
             teamId: String,
             channelId: String,
         ): List<ChannelMessage> {
+            if (isDemoMode) return mockRepository.getChannelMessages(teamId, channelId)
             val url = "https://teams.microsoft.com/api/csa/emea/api/v2/teams/$teamId/channels/$channelId"
             val json = JSONObject(authenticatedGet(url, SCOPE_CHATSVCAGG))
             val chains = json.optJSONArray("replyChains") ?: return emptyList()
@@ -612,6 +648,7 @@ class TeamsApiClient
             content: String,
             rawHtml: Boolean = false,
         ) {
+            if (isDemoMode) return
             val token = getToken(SCOPE_IC3)
             val me = getMe()
             val now = Instant.now().toString()

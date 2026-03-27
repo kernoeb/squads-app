@@ -32,10 +32,10 @@ import com.squads.app.viewmodel.AuthViewModel
 @Composable
 fun ProfileScreen(
     authViewModel: AuthViewModel,
-    myUserId: String? = null,
     onBack: () -> Unit,
 ) {
     val userName by authViewModel.userName.collectAsState()
+    val myUserId by authViewModel.myUserId.collectAsState()
     val photoUrl = myUserId?.let { graphProfilePhotoUrl(it) }
 
     Column(modifier = Modifier.fillMaxSize()) {

@@ -2,6 +2,7 @@ package com.squads.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.squads.app.auth.AuthManager
 import com.squads.app.data.ChatConversation
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.NetworkMonitor
@@ -12,9 +13,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,11 +27,10 @@ class ChatsViewModel
         private val chatRepository: ChatRepository,
         private val networkMonitor: NetworkMonitor,
         private val trouterClient: TrouterClient,
+        private val authManager: AuthManager,
     ) : ViewModel() {
-        val chats: StateFlow<List<ChatConversation>> =
-            chatRepository
-                .observeChats()
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        private val _chats = MutableStateFlow<List<ChatConversation>>(emptyList())
+        val chats: StateFlow<List<ChatConversation>> = _chats
 
         private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
         val messages: StateFlow<List<ChatMessage>> = _messages
@@ -49,10 +48,6 @@ class ChatsViewModel
         val error: StateFlow<String?> = _error
 
         @Volatile
-        var myUserId: String? = null
-            private set
-
-        @Volatile
         private var myDisplayName: String? = null
         private var chatPollingJob: Job? = null
         private var messagePollingJob: Job? = null
@@ -61,18 +56,58 @@ class ChatsViewModel
 
         init {
             api.invalidateCache()
+            viewModelScope.launch { chatRepository.observeChats().collect { _chats.value = it } }
             refreshChats()
             startChatPolling()
             loadMyInfo()
             trouterClient.start()
             collectTrouterEvents()
+            observeAuthState()
+        }
+
+        private fun observeAuthState() {
+            viewModelScope.launch {
+                authManager.isAuthenticated
+                    .drop(1)
+                    .collect { authenticated ->
+                        if (authenticated) reinitialize() else teardown()
+                    }
+            }
+        }
+
+        private fun reinitialize() {
+            cancelAllJobs()
+            _chats.value = emptyList()
+            _messages.value = emptyList()
+            _selectedChat.value = null
+            _error.value = null
+            myDisplayName = null
+            api.invalidateCache()
+            refreshChats()
+            startChatPolling()
+            loadMyInfo()
+            trouterClient.start()
+        }
+
+        private fun teardown() {
+            cancelAllJobs()
+            trouterClient.stop()
+            _chats.value = emptyList()
+            _messages.value = emptyList()
+            _selectedChat.value = null
+        }
+
+        private fun cancelAllJobs() {
+            chatPollingJob?.cancel()
+            messagePollingJob?.cancel()
+            chatRefreshJob?.cancel()
+            messageRefreshJob?.cancel()
         }
 
         private fun loadMyInfo() {
             viewModelScope.launch {
                 try {
                     val me = api.getMe()
-                    myUserId = me.id
                     myDisplayName = me.displayName
                 } catch (_: Exception) {
                 }
@@ -218,7 +253,7 @@ class ChatsViewModel
         ) {
             if (content.isBlank()) return
 
-            val senderObjectId = myUserId ?: ""
+            val senderObjectId = api.myUserId.value ?: ""
             val senderDisplayName = myDisplayName ?: "You"
 
             val escapedContent =

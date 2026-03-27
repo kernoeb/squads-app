@@ -2,6 +2,7 @@ package com.squads.app.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.squads.app.auth.AuthManager
 import com.squads.app.data.ChannelMessage
 import com.squads.app.data.Team
 import com.squads.app.data.TeamsApiClient
@@ -16,6 +17,7 @@ class TeamsViewModel
     @Inject
     constructor(
         private val api: TeamsApiClient,
+        private val authManager: AuthManager,
     ) : ViewModel() {
         private val _teams = MutableStateFlow<List<Team>>(emptyList())
         val teams: StateFlow<List<Team>> = _teams
@@ -39,6 +41,16 @@ class TeamsViewModel
 
         init {
             loadTeams()
+            viewModelScope.launch {
+                authManager.onSessionStart().collect {
+                    lastLoadTime = 0L
+                    _teams.value = emptyList()
+                    _selectedTeam.value = null
+                    _channelMessages.value = emptyList()
+                    _selectedChannelName.value = null
+                    loadTeams(forceRefresh = true)
+                }
+            }
         }
 
         fun loadTeams(forceRefresh: Boolean = false) {

@@ -7,8 +7,11 @@ import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -60,6 +63,9 @@ class AuthManager
 
         private val _deviceCodeState = MutableStateFlow<DeviceCodeState>(DeviceCodeState.Idle)
         val deviceCodeState: StateFlow<DeviceCodeState> = _deviceCodeState
+
+        /** Emits each time a new session starts (login after logout). */
+        fun onSessionStart(): Flow<Boolean> = isAuthenticated.drop(1).filter { it }
 
         // Stored between steps so openBrowserAndPoll can use it
         private var pendingDeviceCode: String? = null
@@ -194,11 +200,14 @@ class AuthManager
 
         fun getRefreshToken(): String? = prefs.getString("refresh_token", null)
 
+        val isDemoMode: Boolean
+            get() = getRefreshToken() == MOCK_REFRESH_TOKEN
+
         /** Mock login for development — simulates a successful auth with demo data. */
         fun mockLogin() {
             prefs
                 .edit()
-                .putString("refresh_token", "mock_refresh_token")
+                .putString("refresh_token", MOCK_REFRESH_TOKEN)
                 .putString("user_name", "You")
                 .apply()
             _isAuthenticated.value = true
@@ -215,5 +224,9 @@ class AuthManager
 
         fun resetState() {
             _deviceCodeState.value = DeviceCodeState.Idle
+        }
+
+        companion object {
+            const val MOCK_REFRESH_TOKEN = "mock_refresh_token"
         }
     }

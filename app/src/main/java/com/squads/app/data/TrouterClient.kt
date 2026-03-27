@@ -1,6 +1,7 @@
 package com.squads.app.data
 
 import android.util.Log
+import com.squads.app.auth.AuthManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,7 +39,11 @@ class TrouterClient
         private val httpClient: OkHttpClient,
         private val api: TeamsApiClient,
         private val networkMonitor: NetworkMonitor,
+        private val authManager: AuthManager,
     ) {
+        private val isDemoMode: Boolean
+            get() = authManager.isDemoMode
+
         sealed class Event {
             data class NewMessage(
                 val chatId: String,
@@ -85,7 +90,7 @@ class TrouterClient
         }
 
         fun start() {
-            if (scope != null) return
+            if (isDemoMode || scope != null) return
             reconnectUrl = null
             backoffMs = 1000L
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

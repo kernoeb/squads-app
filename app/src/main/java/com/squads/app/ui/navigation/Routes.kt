@@ -31,6 +31,4 @@ data class MailDetail(
 ) : NavKey
 
 @Serializable
-data class Profile(
-    val myUserId: String? = null,
-) : NavKey
+data object Profile : NavKey

@@ -87,8 +87,11 @@ private const val MAIL_CONTENT_KEY = "mail"
 fun SquadsApp(authViewModel: AuthViewModel = hiltViewModel()) {
     val isAuthenticated by authViewModel.isAuthenticated.collectAsState()
     val deviceCodeState by authViewModel.deviceCodeState.collectAsState()
+    val isLoggingOut by authViewModel.isLoggingOut.collectAsState()
 
-    if (!isAuthenticated) {
+    if (isLoggingOut) {
+        LoadingScreen()
+    } else if (!isAuthenticated) {
         LoginScreen(
             deviceCodeState = deviceCodeState,
             onRequestCode = { authViewModel.requestCode() },
@@ -170,7 +173,7 @@ private fun MainApp(authViewModel: AuthViewModel) {
                                 navigator.navigate(ChatDetail(chatId = chat.id))
                             },
                             onProfileClick = {
-                                navigator.navigate(Profile(myUserId = chatsViewModel.myUserId))
+                                navigator.navigate(Profile)
                             },
                         )
                     }
@@ -226,11 +229,10 @@ private fun MainApp(authViewModel: AuthViewModel) {
                     entry<TeamsRoute> { TeamsScreen() }
                     entry<SearchRoute> { SearchScreen() }
 
-                    entry<Profile> { key ->
+                    entry<Profile> {
                         Surface(modifier = Modifier.fillMaxSize()) {
                             ProfileScreen(
                                 authViewModel = authViewModel,
-                                myUserId = key.myUserId,
                                 onBack = { navigator.goBack() },
                             )
                         }

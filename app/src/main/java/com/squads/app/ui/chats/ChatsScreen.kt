@@ -33,9 +33,9 @@ import com.squads.app.data.ChatConversation
 import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
-import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.GroupAvatar
 import com.squads.app.ui.components.LoadingScreen
+import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.UnreadBadge
 import com.squads.app.viewmodel.ChatsViewModel
 

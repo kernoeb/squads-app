@@ -36,9 +36,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.MailMessage
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
-import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.ImportanceBadge
 import com.squads.app.ui.components.LoadingScreen
+import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.UnreadBadge
 import com.squads.app.viewmodel.MailViewModel
 
