@@ -19,3 +19,9 @@
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
 -keep @androidx.room.Dao class *
+
+# Navigation 3 type-safe routes (kotlinx.serialization)
+-keepclassmembers @kotlinx.serialization.Serializable class ** {
+    *** Companion;
+}
+-keep class com.squads.app.ui.navigation.** { *; }

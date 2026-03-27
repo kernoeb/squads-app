@@ -55,7 +55,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -92,11 +91,16 @@ import com.squads.app.ui.components.GroupAvatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip
 import com.squads.app.viewmodel.ChatsViewModel
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.materials.CupertinoMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalHazeMaterialsApi::class)
 @Composable
 fun ChatDetailScreen(
     viewModel: ChatsViewModel,
@@ -108,6 +112,7 @@ fun ChatDetailScreen(
     var inputText by remember { mutableStateOf("") }
     var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+    val hazeState = remember { HazeState() }
     val scope = rememberCoroutineScope()
 
     val showScrollToBottom by remember {
@@ -178,7 +183,8 @@ fun ChatDetailScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .imePadding(),
+                    .imePadding()
+                    .hazeSource(state = hazeState),
         ) {
             if (messagesLoading && messages.isEmpty()) {
                 LoadingScreen(Modifier.weight(1f))
@@ -289,6 +295,7 @@ fun ChatDetailScreen(
                         inputText = ""
                     }
                 },
+                hazeState = hazeState,
             )
         }
     }
@@ -403,72 +410,71 @@ private fun DateSeparator(date: LocalDate) {
     }
 }
 
+@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun MessageInput(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    hazeState: HazeState,
 ) {
-    Surface(
-        tonalElevation = 2.dp,
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .hazeEffect(state = hazeState, style = CupertinoMaterials.regular())
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
-                placeholder = {
-                    Text(
-                        "Type a message",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    )
-                },
-                shape = RoundedCornerShape(24.dp),
-                colors =
-                    TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                    ),
-                maxLines = 5,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
-                keyboardActions = KeyboardActions.Default,
-            )
-            Spacer(Modifier.width(6.dp))
-            SmallFloatingActionButton(
-                onClick = onSend,
-                containerColor =
-                    if (value.isNotBlank()) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHighest
-                    },
-                contentColor =
-                    if (value.isNotBlank()) {
-                        MaterialTheme.colorScheme.onPrimary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                    },
-                shape = CircleShape,
-                elevation =
-                    FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp,
-                    ),
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "Send",
-                    modifier = Modifier.size(18.dp),
+        TextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.weight(1f),
+            placeholder = {
+                Text(
+                    "Type a message",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 )
-            }
+            },
+            shape = RoundedCornerShape(24.dp),
+            colors =
+                TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                ),
+            maxLines = 5,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
+            keyboardActions = KeyboardActions.Default,
+        )
+        Spacer(Modifier.width(6.dp))
+        SmallFloatingActionButton(
+            onClick = onSend,
+            containerColor =
+                if (value.isNotBlank()) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+            contentColor =
+                if (value.isNotBlank()) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                },
+            shape = CircleShape,
+            elevation =
+                FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp,
+                ),
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send",
+                modifier = Modifier.size(18.dp),
+            )
         }
     }
 }

@@ -1,6 +1,9 @@
 package com.squads.app.ui
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -15,9 +18,11 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -25,13 +30,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.navigation
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
 import com.squads.app.ui.auth.LoginScreen
 import com.squads.app.ui.calendar.CalendarScreen
 import com.squads.app.ui.chats.ChatDetailScreen
@@ -39,6 +40,14 @@ import com.squads.app.ui.chats.ChatsScreen
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.mail.MailDetailScreen
 import com.squads.app.ui.mail.MailScreen
+import com.squads.app.ui.navigation.ChatDetail
+import com.squads.app.ui.navigation.ChatsList
+import com.squads.app.ui.navigation.MailDetail
+import com.squads.app.ui.navigation.MailList
+import com.squads.app.ui.navigation.Navigator
+import com.squads.app.ui.navigation.Profile
+import com.squads.app.ui.navigation.parentMetadata
+import com.squads.app.ui.navigation.rememberNavigationState
 import com.squads.app.ui.profile.ProfileScreen
 import com.squads.app.ui.search.SearchScreen
 import com.squads.app.ui.teams.TeamsScreen
@@ -50,33 +59,29 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import com.squads.app.ui.navigation.Calendar as CalendarRoute
+import com.squads.app.ui.navigation.Search as SearchRoute
+import com.squads.app.ui.navigation.Teams as TeamsRoute
 
-sealed class Screen(
-    val route: String,
+private data class BottomNavItem(
+    val route: NavKey,
     val label: String,
     val icon: ImageVector,
-) {
-    data object Chats : Screen("chats", "Chats", Icons.AutoMirrored.Filled.Chat)
-
-    data object Mail : Screen("mail", "Mail", Icons.Default.Email)
-
-    data object Calendar : Screen("calendar", "Calendar", Icons.Default.CalendarMonth)
-
-    data object Teams : Screen("teams", "Teams", Icons.Default.Groups)
-
-    data object Search : Screen("search", "Search", Icons.Default.Search)
-}
+)
 
 private val bottomNavItems =
     listOf(
-        Screen.Chats,
-        Screen.Mail,
-        Screen.Calendar,
-        Screen.Teams,
-        Screen.Search,
+        BottomNavItem(ChatsList, "Chats", Icons.AutoMirrored.Filled.Chat),
+        BottomNavItem(MailList, "Mail", Icons.Default.Email),
+        BottomNavItem(CalendarRoute, "Calendar", Icons.Default.CalendarMonth),
+        BottomNavItem(TeamsRoute, "Teams", Icons.Default.Groups),
+        BottomNavItem(SearchRoute, "Search", Icons.Default.Search),
     )
 
-private val bottomBarRoutes = setOf("chats_list", "mail_list", "calendar", "teams", "search", "profile")
+private val topLevelRoutes: Set<NavKey> = setOf(ChatsList, MailList, CalendarRoute, TeamsRoute, SearchRoute)
+
+private const val CHATS_CONTENT_KEY = "chats"
+private const val MAIL_CONTENT_KEY = "mail"
 
 @Composable
 fun SquadsApp(authViewModel: AuthViewModel = hiltViewModel()) {
@@ -99,14 +104,21 @@ fun SquadsApp(authViewModel: AuthViewModel = hiltViewModel()) {
 @OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun MainApp(authViewModel: AuthViewModel) {
-    val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-    val currentRoute = currentDestination?.route
+    val navigationState =
+        rememberNavigationState(
+            startRoute = ChatsList,
+            topLevelRoutes = topLevelRoutes,
+        )
+    val navigator = remember { Navigator(navigationState) }
     val view = LocalView.current
     val hazeState = remember { HazeState() }
 
-    val showBottomBar = currentRoute in bottomBarRoutes
+    val showBottomBar by remember {
+        derivedStateOf {
+            val key = navigationState.backStacks[navigationState.topLevelRoute]?.lastOrNull()
+            key in topLevelRoutes
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -121,20 +133,14 @@ private fun MainApp(authViewModel: AuthViewModel) {
                             style = hazeStyle,
                         ),
                 ) {
-                    bottomNavItems.forEach { screen ->
+                    bottomNavItems.forEach { item ->
                         NavigationBarItem(
-                            icon = { Icon(screen.icon, contentDescription = screen.label) },
-                            label = { Text(screen.label) },
-                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) },
+                            selected = item.route == navigationState.topLevelRoute,
                             onClick = {
                                 view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                                navigator.navigate(item.route)
                             },
                             colors =
                                 NavigationBarItemDefaults.colors(
@@ -152,81 +158,98 @@ private fun MainApp(authViewModel: AuthViewModel) {
                     .fillMaxSize()
                     .hazeSource(state = hazeState),
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = Screen.Chats.route,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                // Chats tab — nested graph to share ChatsViewModel
-                navigation(startDestination = "chats_list", route = Screen.Chats.route) {
-                    composable("chats_list") { entry ->
-                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Chats.route) }
-                        val chatsViewModel: ChatsViewModel = hiltViewModel(parentEntry)
+            val provider =
+                entryProvider {
+                    entry<ChatsList>(
+                        clazzContentKey = { CHATS_CONTENT_KEY },
+                    ) {
+                        val chatsViewModel: ChatsViewModel = hiltViewModel()
                         ChatsScreen(
                             viewModel = chatsViewModel,
-                            onChatClick = { navController.navigate("chatDetail") },
-                            onProfileClick = { navController.navigate("profile") },
-                        )
-                    }
-                    composable("chatDetail") { entry ->
-                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Chats.route) }
-                        val chatsViewModel: ChatsViewModel = hiltViewModel(parentEntry)
-                        ChatDetailScreen(
-                            viewModel = chatsViewModel,
-                            onBack = {
-                                chatsViewModel.stopMessagePolling()
-                                navController.popBackStack()
+                            onChatClick = { chat ->
+                                navigator.navigate(ChatDetail(chatId = chat.id))
+                            },
+                            onProfileClick = {
+                                navigator.navigate(Profile(myUserId = chatsViewModel.myUserId))
                             },
                         )
                     }
-                }
 
-                // Mail tab — nested graph to share MailViewModel
-                navigation(startDestination = "mail_list", route = Screen.Mail.route) {
-                    composable("mail_list") { entry ->
-                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Mail.route) }
-                        val mailViewModel: MailViewModel = hiltViewModel(parentEntry)
-                        MailScreen(
-                            viewModel = mailViewModel,
-                            onMailClick = { navController.navigate("mailDetail") },
-                        )
-                    }
-                    composable("mailDetail") { entry ->
-                        val parentEntry = remember(entry) { navController.getBackStackEntry(Screen.Mail.route) }
-                        val mailViewModel: MailViewModel = hiltViewModel(parentEntry)
-                        val selectedMail by mailViewModel.selectedMail.collectAsState()
-                        if (selectedMail != null) {
-                            MailDetailScreen(
-                                mail = selectedMail!!,
+                    entry<ChatDetail>(
+                        metadata = parentMetadata(CHATS_CONTENT_KEY),
+                    ) {
+                        Surface(modifier = Modifier.fillMaxSize()) {
+                            val chatsViewModel: ChatsViewModel = hiltViewModel()
+                            ChatDetailScreen(
+                                viewModel = chatsViewModel,
                                 onBack = {
-                                    navController.popBackStack()
-                                    mailViewModel.clearSelection()
+                                    chatsViewModel.stopMessagePolling()
+                                    navigator.goBack()
                                 },
                             )
-                        } else {
-                            LoadingScreen()
+                        }
+                    }
+
+                    entry<MailList>(
+                        clazzContentKey = { MAIL_CONTENT_KEY },
+                    ) {
+                        val mailViewModel: MailViewModel = hiltViewModel()
+                        MailScreen(
+                            viewModel = mailViewModel,
+                            onMailClick = {
+                                navigator.navigate(MailDetail(mailId = "selected"))
+                            },
+                        )
+                    }
+
+                    entry<MailDetail>(
+                        metadata = parentMetadata(MAIL_CONTENT_KEY),
+                    ) {
+                        Surface(modifier = Modifier.fillMaxSize()) {
+                            val mailViewModel: MailViewModel = hiltViewModel()
+                            val selectedMail by mailViewModel.selectedMail.collectAsState()
+                            if (selectedMail != null) {
+                                MailDetailScreen(
+                                    mail = selectedMail!!,
+                                    onBack = {
+                                        navigator.goBack()
+                                        mailViewModel.clearSelection()
+                                    },
+                                )
+                            } else {
+                                LoadingScreen()
+                            }
+                        }
+                    }
+
+                    entry<CalendarRoute> { CalendarScreen() }
+                    entry<TeamsRoute> { TeamsScreen() }
+                    entry<SearchRoute> { SearchScreen() }
+
+                    entry<Profile> { key ->
+                        Surface(modifier = Modifier.fillMaxSize()) {
+                            ProfileScreen(
+                                authViewModel = authViewModel,
+                                myUserId = key.myUserId,
+                                onBack = { navigator.goBack() },
+                            )
                         }
                     }
                 }
 
-                composable(Screen.Calendar.route) { CalendarScreen() }
-                composable(Screen.Teams.route) { TeamsScreen() }
-                composable(Screen.Search.route) { SearchScreen() }
-                composable("profile") { entry ->
-                    val chatsEntry =
-                        try {
-                            navController.getBackStackEntry(Screen.Chats.route)
-                        } catch (_: IllegalArgumentException) {
-                            null
-                        }
-                    val chatsViewModel: ChatsViewModel? = chatsEntry?.let { hiltViewModel(it) }
-                    ProfileScreen(
-                        authViewModel = authViewModel,
-                        myUserId = chatsViewModel?.myUserId,
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-            }
+            NavDisplay(
+                entries = navigationState.toDecoratedEntries(provider),
+                onBack = { navigator.goBack() },
+                popTransitionSpec = {
+                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                        slideOutHorizontally(targetOffsetX = { it })
+                },
+                predictivePopTransitionSpec = { _ ->
+                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                        slideOutHorizontally(targetOffsetX = { it })
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
