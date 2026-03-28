@@ -1,0 +1,13 @@
+appId: com.squads.app
+name: "Last Item Visible After Scroll"
+---
+- runFlow: _shared/login-demo.yaml
+
+# Scroll to bottom of chat list and verify last chat is visible
+- scroll
+- assertVisible: "Kevin O'Brien"
+
+# Switch to Mail tab, scroll down, verify last mail visible
+- tapOn: "Mail"
+- scroll
+- assertVisible: "Engineering Lead"

@@ -56,10 +56,12 @@ just ktlint       # check code style
 just format       # auto-format code
 just test         # run unit tests
 just test-device  # run instrumented tests
+just maestro      # run Maestro UI tests
 just logcat       # filtered logcat output
 just restart      # kill + relaunch
 just clean        # clean build artifacts
 just deps         # show project dependencies
+just ship 0.3.0   # tag, push, wait for CI, download APK
 ```
 
 ## Tech stack
@@ -80,6 +82,8 @@ just deps         # show project dependencies
 | Performance | Baseline profiles |
 | Splash | AndroidX SplashScreen |
 | Linter | ktlint via ktlint-gradle |
+| UI Testing | Maestro |
+| Unit Testing | JUnit 6 (Jupiter) |
 | Font | Inter via Google Fonts |
 
 ## Project structure
@@ -87,13 +91,16 @@ just deps         # show project dependencies
 ```
 app/src/main/java/com/squads/app/
 ├── auth/           # OAuth flow & token management
-├── data/           # API client, data models, Room DB, HTML parser
+├── data/           # API clients (TeamsApiClient, MailApi, CalendarApi),
+│   │                 models, Room DB, HTML parser, JSON extensions
+│   ├── db/         # Room database, entities, DAOs, mappers
+│   └── repository/ # ChatRepository, MailRepository
 ├── di/             # Hilt dependency injection
 ├── ui/
 │   ├── auth/       # Login screen
 │   ├── calendar/   # Calendar views
-│   ├── chats/      # Chat list & detail
-│   ├── components/ # Shared UI (Avatar, ScreenHeader, badges, loading)
+│   ├── chats/      # Chat list, detail, components, image viewer
+│   ├── components/ # Shared UI (Avatar, ChatAvatar, ScreenHeader, badges)
 │   ├── mail/       # Mail list & detail
 │   ├── navigation/ # Navigation graph & type-safe routes
 │   ├── profile/    # Profile & settings
@@ -101,6 +108,9 @@ app/src/main/java/com/squads/app/
 │   ├── teams/      # Teams, channels, messages
 │   └── theme/      # Colors, typography
 └── viewmodel/      # ViewModels for each feature
+
+.maestro/             # Maestro UI test flows (demo login, navigation, etc.)
+app/src/test/         # JUnit 6 unit tests (HtmlParser, JSON, presence, time)
 ```
 
 ## License

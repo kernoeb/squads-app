@@ -49,6 +49,7 @@ import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip
 import com.squads.app.ui.components.ScreenHeader
+import com.squads.app.ui.theme.BottomNavHeight
 import com.squads.app.viewmodel.TeamsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,7 +110,12 @@ private fun TeamsListView(
     teams: List<Team>,
     onTeamClick: (Team) -> Unit,
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+    val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(bottom = BottomNavHeight + systemNavInset),
+    ) {
         item { ScreenHeader("Teams") }
         items(teams, key = { it.id }, contentType = { "team" }) { team ->
             Card(
@@ -141,7 +147,6 @@ private fun TeamsListView(
                 }
             }
         }
-        item { Spacer(Modifier.height(80.dp)) }
     }
 }
 
@@ -179,14 +184,13 @@ private fun ChannelsListView(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChannelMessagesView(messages: List<ChannelMessage>) {
-    val bottomNavHeight = 80.dp
     val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         reverseLayout = true,
         verticalArrangement = Arrangement.spacedBy(4.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = bottomNavHeight + systemNavInset + 16.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = BottomNavHeight + systemNavInset + 16.dp),
     ) {
         items(messages, key = { it.id }, contentType = { "channelMessage" }) { msg ->
             Card(

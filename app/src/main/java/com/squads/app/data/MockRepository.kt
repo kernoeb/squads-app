@@ -66,6 +66,11 @@ class MockRepository
                 ),
                 ChatConversation("c9", "Frank Lopez", "Sounds good 👍", now.minusDays(3), memberId = "frank-id"),
                 ChatConversation("c10", "Grace Kim", "Let me check and get back to you", now.minusDays(4), memberId = "grace-id"),
+                ChatConversation("c11", "Hannah Park", "I'll review it tonight", now.minusDays(5), memberId = "hannah-id"),
+                ChatConversation("c12", "Platform Team", "CI is green again 🟢", now.minusDays(5), isOneOnOne = false, memberCount = 15),
+                ChatConversation("c13", "Ivan Petrov", "See you at the conference!", now.minusDays(6), memberId = "ivan-id"),
+                ChatConversation("c14", "Julia Santos", "The docs are updated", now.minusDays(7), memberId = "julia-id"),
+                ChatConversation("c15", "Kevin O'Brien", "Merged, thanks for the review", now.minusDays(8), memberId = "kevin-id"),
             )
 
         fun getMessages(chatId: String): List<ChatMessage> =
@@ -242,6 +247,43 @@ class MockRepository
                     "Product Team",
                     "product@contoso.com",
                     receivedDateTime = now.minusDays(3),
+                ),
+                MailMessage(
+                    "e9",
+                    "Security training reminder",
+                    "Annual security awareness training is due by end of month. Please complete the modules.",
+                    "",
+                    "IT Security",
+                    "security@contoso.com",
+                    receivedDateTime = now.minusDays(4),
+                ),
+                MailMessage(
+                    "e10",
+                    "Re: Database migration plan",
+                    "The migration window is confirmed for Saturday 2 AM - 4 AM UTC. Rollback plan attached.",
+                    "",
+                    "DBA Team",
+                    "dba@contoso.com",
+                    receivedDateTime = now.minusDays(4),
+                    hasAttachments = true,
+                ),
+                MailMessage(
+                    "e11",
+                    "New hire onboarding — mentors needed",
+                    "We have 3 new engineers joining next week. Please sign up as a mentor if available.",
+                    "",
+                    "HR Team",
+                    "hr@contoso.com",
+                    receivedDateTime = now.minusDays(5),
+                ),
+                MailMessage(
+                    "e12",
+                    "Hackathon results 🏆",
+                    "Congratulations to all participants! See the winning projects and demos inside.",
+                    "",
+                    "Engineering Lead",
+                    "eng-lead@contoso.com",
+                    receivedDateTime = now.minusDays(6),
                 ),
             )
 

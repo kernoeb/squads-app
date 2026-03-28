@@ -2,10 +2,14 @@ package com.squads.app.ui.search
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -35,6 +39,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.SearchResult
 import com.squads.app.data.SearchResultType
 import com.squads.app.ui.components.ScreenHeader
+import com.squads.app.ui.theme.BottomNavHeight
 import com.squads.app.viewmodel.SearchViewModel
 
 @Composable
@@ -94,7 +99,10 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                 )
             }
         } else {
-            LazyColumn {
+            val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            LazyColumn(
+                contentPadding = PaddingValues(bottom = BottomNavHeight + systemNavInset),
+            ) {
                 items(results, key = { "${it.type}-${it.id}" }, contentType = { it.type }) { result ->
                     SearchResultRow(result)
                     HorizontalDivider(
@@ -102,7 +110,6 @@ fun SearchScreen(viewModel: SearchViewModel = hiltViewModel()) {
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     )
                 }
-                item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }

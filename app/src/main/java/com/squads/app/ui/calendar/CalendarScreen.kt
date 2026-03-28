@@ -6,10 +6,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -43,6 +47,7 @@ import com.squads.app.data.CalendarEvent
 import com.squads.app.data.toTimeString
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ScreenHeader
+import com.squads.app.ui.theme.BottomNavHeight
 import com.squads.app.viewmodel.CalendarViewModel
 import java.time.format.DateTimeFormatter
 
@@ -81,7 +86,11 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
             LoadingScreen()
         } else {
             val grouped = remember(events) { events.groupBy { it.startTime.toLocalDate() } }
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = BottomNavHeight + systemNavInset),
+            ) {
                 grouped.forEach { (date, dayEvents) ->
                     item(contentType = "dateHeader") {
                         Text(
@@ -96,7 +105,6 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
                         EventCard(event = event, onClick = { viewModel.selectEvent(event) })
                     }
                 }
-                item { Spacer(Modifier.height(80.dp)) }
             }
         }
     }

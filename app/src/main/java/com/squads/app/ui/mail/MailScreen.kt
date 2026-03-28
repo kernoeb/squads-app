@@ -4,10 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -40,6 +44,7 @@ import com.squads.app.ui.components.ImportanceBadge
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.UnreadBadge
+import com.squads.app.ui.theme.BottomNavHeight
 import com.squads.app.viewmodel.MailViewModel
 
 @Composable
@@ -68,7 +73,12 @@ private fun MailListScreen(
     messages: List<MailMessage>,
     onMailClick: (MailMessage) -> Unit,
 ) {
-    LazyColumn(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+    val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        contentPadding = PaddingValues(bottom = BottomNavHeight + systemNavInset),
+    ) {
         item { ScreenHeader("Mail") }
         items(messages, key = { it.id }, contentType = { "mail" }) { mail ->
             MailRow(mail = mail, onClick = { onMailClick(mail) })
@@ -77,7 +87,6 @@ private fun MailListScreen(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
             )
         }
-        item { Spacer(Modifier.height(80.dp)) }
     }
 }
 
