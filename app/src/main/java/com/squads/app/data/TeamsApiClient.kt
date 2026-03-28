@@ -22,7 +22,6 @@ import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
@@ -43,13 +42,13 @@ class TeamsApiClient
         private val authManager: AuthManager,
         private val emojiManager: EmojiManager,
         private val httpClient: OkHttpClient,
-        private val mockRepository: MockRepository,
+        internal val mockRepository: MockRepository,
     ) {
         companion object {
             private const val TAG = "TeamsApiClient"
         }
 
-        private val isDemoMode: Boolean
+        internal val isDemoMode: Boolean
             get() = authManager.isDemoMode
         private val tokenCache = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Long>>()
         private val tokenMutex = Mutex()
@@ -112,7 +111,7 @@ class TeamsApiClient
 
         // ─── HTTP helpers ────────────────────────────────────────────
 
-        private suspend fun httpGet(
+        internal suspend fun httpGet(
             url: String,
             token: String,
         ): String =
@@ -133,7 +132,7 @@ class TeamsApiClient
                 }
             }
 
-        private suspend fun httpPostRaw(
+        internal suspend fun httpPostRaw(
             url: String,
             body: String,
             contentType: String,
@@ -160,7 +159,7 @@ class TeamsApiClient
                 }
             }
 
-        private suspend fun httpPost(
+        internal suspend fun httpPost(
             url: String,
             body: String,
             contentType: String,
@@ -168,7 +167,7 @@ class TeamsApiClient
             token: String? = null,
         ): JSONObject = JSONObject(httpPostRaw(url, body, contentType, headers, token))
 
-        private suspend fun authenticatedGet(
+        internal suspend fun authenticatedGet(
             url: String,
             scope: String,
         ): String {
@@ -176,7 +175,7 @@ class TeamsApiClient
             return httpGet(url, token)
         }
 
-        private suspend fun graphGet(path: String) = authenticatedGet(path, SCOPE_GRAPH)
+        internal suspend fun graphGet(path: String) = authenticatedGet(path, SCOPE_GRAPH)
 
         /** IC3 token for Trouter auth + registrar. */
         suspend fun getIc3Token(): String = getToken(SCOPE_IC3)
@@ -621,90 +620,6 @@ class TeamsApiClient
                 .removePrefix("https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/contacts/")
                 .removePrefix("https://notifications.skype.net/v1/users/ME/contacts/")
 
-        // ─── Mail ────────────────────────────────────────────────────
-
-        suspend fun getMail(limit: Int = 25): List<MailMessage> {
-            if (isDemoMode) return mockRepository.getMail()
-            val url = "https://graph.microsoft.com/v1.0/me/messages?\$top=$limit&\$orderby=receivedDateTime desc"
-            val arr = JSONObject(graphGet(url)).optJSONArray("value") ?: return emptyList()
-            return arr.objects().map(::parseMailMessage)
-        }
-
-        suspend fun getMailDetail(messageId: String): MailMessage {
-            if (isDemoMode) return mockRepository.getMailDetail(messageId)
-            return parseMailMessage(JSONObject(graphGet("https://graph.microsoft.com/v1.0/me/messages/$messageId")))
-        }
-
-        private fun parseMailMessage(m: JSONObject): MailMessage {
-            val from = m.optJSONObject("from")?.optJSONObject("emailAddress")
-            val toList =
-                (m.optJSONArray("toRecipients") ?: JSONArray())
-                    .objects()
-                    .map { it.optJSONObject("emailAddress")?.optString("address", "") ?: "" }
-
-            return MailMessage(
-                id = m.optString("id"),
-                subject = m.optString("subject", "(No subject)"),
-                bodyPreview = m.optString("bodyPreview", ""),
-                body = m.optJSONObject("body")?.optString("content", "") ?: "",
-                fromName = from?.optString("name", "Unknown") ?: "Unknown",
-                fromAddress = from?.optString("address", "") ?: "",
-                toRecipients = toList,
-                receivedDateTime = parseTimestamp(m.optString("receivedDateTime", "")),
-                isRead = m.optBoolean("isRead", true),
-                isDraft = m.optBoolean("isDraft", false),
-                hasAttachments = m.optBoolean("hasAttachments", false),
-                importance = m.optString("importance", "normal"),
-            )
-        }
-
-        // ─── Calendar ────────────────────────────────────────────────
-
-        suspend fun getEvents(days: Int): List<CalendarEvent> {
-            if (isDemoMode) return if (days <= 1) mockRepository.getTodayEvents() else mockRepository.getWeekEvents()
-            val now = ZonedDateTime.now(ZoneId.of("UTC"))
-            val start = now.toLocalDate().atStartOfDay(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_INSTANT)
-            val end =
-                now
-                    .toLocalDate()
-                    .plusDays(days.toLong())
-                    .atStartOfDay(ZoneId.of("UTC"))
-                    .format(DateTimeFormatter.ISO_INSTANT)
-
-            val url =
-                "https://graph.microsoft.com/v1.0/me/calendarView" +
-                    "?startDateTime=$start&endDateTime=$end&\$orderby=start/dateTime&\$top=50"
-            val arr = JSONObject(graphGet(url)).optJSONArray("value") ?: return emptyList()
-
-            return arr.objects().map { e ->
-                val organizer = e.optJSONObject("organizer")?.optJSONObject("emailAddress")
-                val attendees =
-                    (e.optJSONArray("attendees") ?: JSONArray()).objects().map { a ->
-                        val email = a.optJSONObject("emailAddress")
-                        EventAttendee(
-                            name = email?.optString("name", "") ?: "",
-                            email = email?.optString("address", "") ?: "",
-                            response = a.optJSONObject("status")?.optString("response", "none") ?: "none",
-                        )
-                    }
-
-                CalendarEvent(
-                    id = e.optString("id"),
-                    subject = e.optString("subject", "(No subject)"),
-                    startTime = parseTimestamp(e.optJSONObject("start")?.optString("dateTime", "") ?: ""),
-                    endTime = parseTimestamp(e.optJSONObject("end")?.optString("dateTime", "") ?: ""),
-                    location = e.optJSONObject("location")?.optString("displayName", "")?.ifEmpty { null },
-                    organizerName = organizer?.optString("name", "Unknown") ?: "Unknown",
-                    isOnlineMeeting = e.optBoolean("isOnlineMeeting", false),
-                    meetingUrl = e.optJSONObject("onlineMeeting")?.optString("joinUrl", ""),
-                    isAllDay = e.optBoolean("isAllDay", false),
-                    isCancelled = e.optBoolean("isCancelled", false),
-                    responseStatus = e.optJSONObject("responseStatus")?.optString("response", "none") ?: "none",
-                    attendees = attendees,
-                )
-            }
-        }
-
         // ─── Teams / channels ────────────────────────────────────────
 
         suspend fun getChannelMessages(
@@ -825,7 +740,7 @@ class TeamsApiClient
 
         // ─── HTTP PUT helper ─────────────────────────────────────────
 
-        private suspend fun httpPut(
+        internal suspend fun httpPut(
             url: String,
             body: String,
             contentType: String,
@@ -857,7 +772,7 @@ class TeamsApiClient
             }
         }
 
-        private fun parseTimestamp(ts: String): LocalDateTime {
+        internal fun parseTimestamp(ts: String): LocalDateTime {
             if (ts.isBlank()) return LocalDateTime.MIN
             // Truncate fractional seconds beyond 3 digits (.NET sends 7) for Instant.parse compat
             val normalized = ts.replace(FRACTIONAL_SECONDS_REGEX, "$1")
