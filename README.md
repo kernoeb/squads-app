@@ -4,6 +4,15 @@ A native Android client for Microsoft Teams & Outlook — built with Jetpack Com
 
 Squads lets you access your chats, emails, calendar, and teams through a clean, fast, alternative interface. It authenticates via Microsoft's device code OAuth flow and talks directly to the Graph API and Teams APIs.
 
+## Screenshots
+
+<p align="center">
+  <img src="screenshots/chats.png" width="24%" />
+  <img src="screenshots/chat-detail.png" width="24%" />
+  <img src="screenshots/mail.png" width="24%" />
+  <img src="screenshots/calendar.png" width="24%" />
+</p>
+
 ## Features
 
 - **Chats** — real-time conversations via Trouter push notifications, inline images, reactions, swipe-to-reply with blockquotes, and profile photos
