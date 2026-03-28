@@ -113,6 +113,10 @@ app/src/main/java/com/squads/app/
 app/src/test/         # JUnit 6 unit tests (HtmlParser, JSON, presence, time)
 ```
 
+## Disclaimer
+
+This project is not affiliated with, endorsed by, or officially connected to Microsoft. Use of Microsoft's APIs may be subject to their terms of service. Use at your own risk.
+
 ## License
 
 [MIT](LICENSE)
