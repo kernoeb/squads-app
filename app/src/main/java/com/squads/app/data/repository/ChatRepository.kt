@@ -32,6 +32,14 @@ class ChatRepository
             return messages
         }
 
+        suspend fun markChatAsRead(
+            chatId: String,
+            lastMessageId: String? = null,
+        ) {
+            chatDao.markChatAsRead(chatId)
+            api.markChatAsRead(chatId, lastMessageId)
+        }
+
         suspend fun insertLocalMessage(
             chatId: String,
             message: ChatMessage,

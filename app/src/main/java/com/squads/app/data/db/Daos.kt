@@ -24,6 +24,9 @@ interface ChatDao {
         deleteChatsNotIn(chats.map { it.id })
     }
 
+    @Query("UPDATE chats SET isUnread = 0 WHERE id = :chatId")
+    suspend fun markChatAsRead(chatId: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessages(messages: List<ChatMessageEntity>)
 

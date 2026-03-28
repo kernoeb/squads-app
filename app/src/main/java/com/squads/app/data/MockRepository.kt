@@ -26,17 +26,37 @@ class MockRepository
                 availability = "Available",
             )
 
+        // ─── Presence ───────────────────────────────────────────────
+
+        fun getPresences(userIds: List<String>): Map<String, String> =
+            userIds.associateWith { id ->
+                when (id.hashCode().mod(5)) {
+                    0 -> "Available"
+                    1 -> "Busy"
+                    2 -> "Away"
+                    3 -> "Available"
+                    else -> "DoNotDisturb"
+                }
+            }
+
         // ─── Chats ──────────────────────────────────────────────────
 
         fun getChats(): List<ChatConversation> =
             listOf(
-                ChatConversation("c1", "Alice Martin", "Hey, did you review the PR?", now.minusMinutes(5), isUnread = true),
-                ChatConversation("c2", "Bob Chen", "Sure, I'll send it over", now.minusMinutes(42)),
+                ChatConversation(
+                    "c1",
+                    "Alice Martin",
+                    "Hey, did you review the PR?",
+                    now.minusMinutes(5),
+                    isUnread = true,
+                    memberId = "alice-id",
+                ),
+                ChatConversation("c2", "Bob Chen", "Sure, I'll send it over", now.minusMinutes(42), memberId = "bob-id"),
                 ChatConversation("c3", "Design Team", "Updated the mockups 🎨", now.minusHours(2), isOneOnOne = false, memberCount = 6),
-                ChatConversation("c4", "Clara Diaz", "Thanks for the help!", now.minusHours(4)),
+                ChatConversation("c4", "Clara Diaz", "Thanks for the help!", now.minusHours(4), memberId = "clara-id"),
                 ChatConversation("c5", "Backend Guild", "Deploying v2.3 tonight", now.minusHours(8), isOneOnOne = false, memberCount = 12),
-                ChatConversation("c6", "Dev Tanaka", "Can we sync tomorrow?", now.minusDays(1)),
-                ChatConversation("c7", "Emma Wilson", "The meeting notes are attached", now.minusDays(1)),
+                ChatConversation("c6", "Dev Tanaka", "Can we sync tomorrow?", now.minusDays(1), memberId = "dev-id"),
+                ChatConversation("c7", "Emma Wilson", "The meeting notes are attached", now.minusDays(1), memberId = "emma-id"),
                 ChatConversation(
                     "c8",
                     "Sprint Planning",
@@ -45,8 +65,8 @@ class MockRepository
                     isOneOnOne = false,
                     memberCount = 8,
                 ),
-                ChatConversation("c9", "Frank Lopez", "Sounds good 👍", now.minusDays(3)),
-                ChatConversation("c10", "Grace Kim", "Let me check and get back to you", now.minusDays(4)),
+                ChatConversation("c9", "Frank Lopez", "Sounds good 👍", now.minusDays(3), memberId = "frank-id"),
+                ChatConversation("c10", "Grace Kim", "Let me check and get back to you", now.minusDays(4), memberId = "grace-id"),
             )
 
         fun getMessages(chatId: String): List<ChatMessage> =

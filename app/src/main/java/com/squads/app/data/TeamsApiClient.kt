@@ -23,12 +23,14 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val SCOPE_GRAPH = "https://graph.microsoft.com/.default"
 private const val SCOPE_CHATSVCAGG = "https://chatsvcagg.teams.microsoft.com/.default"
 private const val SCOPE_IC3 = "https://ic3.teams.office.com/.default"
+private const val SCOPE_PRESENCE = "https://presence.teams.microsoft.com/.default"
 private val FRACTIONAL_SECONDS_REGEX = Regex("(\\.\\d{3})\\d+")
 
 const val USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0"
@@ -126,13 +128,13 @@ class TeamsApiClient
                 }
             }
 
-        private suspend fun httpPost(
+        private suspend fun httpPostRaw(
             url: String,
             body: String,
             contentType: String,
             headers: Map<String, String> = emptyMap(),
             token: String? = null,
-        ): JSONObject =
+        ): String =
             withContext(Dispatchers.IO) {
                 val requestBody = body.toRequestBody(contentType.toMediaType())
                 val builder =
@@ -149,9 +151,17 @@ class TeamsApiClient
                     if (!response.isSuccessful) {
                         throw Exception("HTTP ${response.code}: $responseBody")
                     }
-                    JSONObject(responseBody)
+                    responseBody
                 }
             }
+
+        private suspend fun httpPost(
+            url: String,
+            body: String,
+            contentType: String,
+            headers: Map<String, String> = emptyMap(),
+            token: String? = null,
+        ): JSONObject = JSONObject(httpPostRaw(url, body, contentType, headers, token))
 
         private suspend fun authenticatedGet(
             url: String,
@@ -191,6 +201,94 @@ class TeamsApiClient
                 displayName = json.str("displayName", "User"),
                 email = json.str("mail"),
                 jobTitle = json.str("jobTitle").ifEmpty { null },
+            )
+        }
+
+        // ─── Presence ────────────────────────────────────────────────
+
+        suspend fun getPresences(userIds: List<String>): Map<String, String> {
+            if (isDemoMode) return mockRepository.getPresences(userIds)
+            if (userIds.isEmpty()) return emptyMap()
+            return try {
+                val token = getToken(SCOPE_PRESENCE)
+                val body = JSONArray(userIds.take(650).map { JSONObject().put("mri", "8:orgid:$it") })
+                val raw =
+                    httpPostRaw(
+                        url = "https://presence.teams.microsoft.com/v1/presence/getpresence/",
+                        body = body.toString(),
+                        contentType = "application/json",
+                        token = token,
+                    )
+                val result = mutableMapOf<String, String>()
+                for (item in JSONArray(raw).objects()) {
+                    val userId = item.str("mri").removePrefix("8:orgid:")
+                    val presence = item.optJSONObject("presence")
+                    if (presence != null) {
+                        result[userId] = presence.str("availability", "Offline")
+                    }
+                }
+                result
+            } catch (_: Exception) {
+                emptyMap()
+            }
+        }
+
+        // ─── Mark as read ────────────────────────────────────────────
+
+        suspend fun markChatAsRead(
+            chatId: String,
+            lastMessageId: String? = null,
+        ) {
+            if (isDemoMode) return
+            try {
+                val token = getToken(SCOPE_IC3)
+                val now = System.currentTimeMillis()
+                val horizon = "$now;0;${lastMessageId ?: now}"
+                val base = "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations"
+                httpPut(
+                    url = "$base/$chatId/properties?name=consumptionhorizon",
+                    body = JSONObject().put("consumptionhorizon", horizon).toString(),
+                    contentType = "application/json",
+                    token = token,
+                )
+                invalidateCache()
+            } catch (_: Exception) {
+            }
+        }
+
+        suspend fun subscribePresence(
+            endpointId: String,
+            trouterUri: String,
+            userIds: List<String>,
+        ) {
+            val token = getToken(SCOPE_PRESENCE)
+            val body =
+                JSONObject().apply {
+                    put("trouterUri", trouterUri)
+                    put("shouldPurgePreviousSubscriptions", true)
+                    put(
+                        "subscriptionsToAdd",
+                        JSONArray(
+                            userIds.map {
+                                JSONObject().put("mri", "8:orgid:$it").put("source", "ups")
+                            },
+                        ),
+                    )
+                    put("subscriptionsToRemove", JSONArray())
+                }
+            httpPostRaw(
+                url = "https://teams.cloud.microsoft/ups/emea/v1/pubsub/subscriptions/$endpointId",
+                body = body.toString(),
+                contentType = "application/json",
+                headers =
+                    mapOf(
+                        "x-ms-client-user-agent" to "Teams-V2-Web",
+                        "x-ms-client-version" to "1415/26022704215",
+                        "x-ms-client-type" to "cdlworker",
+                        "x-ms-endpoint-id" to endpointId,
+                        "x-ms-correlation-id" to UUID.randomUUID().toString(),
+                    ),
+                token = token,
             )
         }
 
@@ -707,6 +805,30 @@ class TeamsApiClient
                 contentType = "application/json",
                 token = token,
             )
+        }
+
+        // ─── HTTP PUT helper ─────────────────────────────────────────
+
+        private suspend fun httpPut(
+            url: String,
+            body: String,
+            contentType: String,
+            token: String,
+        ) = withContext(Dispatchers.IO) {
+            val requestBody = body.toRequestBody(contentType.toMediaType())
+            val request =
+                Request
+                    .Builder()
+                    .url(url)
+                    .put(requestBody)
+                    .header("Authorization", "Bearer $token")
+                    .header("User-Agent", USER_AGENT)
+                    .build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw Exception("HTTP ${response.code}: ${response.body.string()}")
+                }
+            }
         }
 
         // ─── Parsing helpers ─────────────────────────────────────────

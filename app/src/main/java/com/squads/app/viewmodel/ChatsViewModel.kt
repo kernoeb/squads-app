@@ -15,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,6 +39,9 @@ class ChatsViewModel
         private val _selectedChat = MutableStateFlow<ChatConversation?>(null)
         val selectedChat: StateFlow<ChatConversation?> = _selectedChat
 
+        private val _presenceMap = MutableStateFlow<Map<String, String>>(emptyMap())
+        val presenceMap: StateFlow<Map<String, String>> = _presenceMap
+
         private val _isLoading = MutableStateFlow(false)
         val isLoading: StateFlow<Boolean> = _isLoading
 
@@ -53,12 +57,14 @@ class ChatsViewModel
         private var messagePollingJob: Job? = null
         private var chatRefreshJob: Job? = null
         private var messageRefreshJob: Job? = null
+        private var presenceJob: Job? = null
 
         init {
             api.invalidateCache()
             viewModelScope.launch { chatRepository.observeChats().collect { _chats.value = it } }
             refreshChats()
             startChatPolling()
+            startPresencePolling()
             loadMyInfo()
             trouterClient.start()
             collectTrouterEvents()
@@ -81,10 +87,12 @@ class ChatsViewModel
             _messages.value = emptyList()
             _selectedChat.value = null
             _error.value = null
+            _presenceMap.value = emptyMap()
             myDisplayName = null
             api.invalidateCache()
             refreshChats()
             startChatPolling()
+            startPresencePolling()
             loadMyInfo()
             trouterClient.start()
         }
@@ -95,6 +103,7 @@ class ChatsViewModel
             _chats.value = emptyList()
             _messages.value = emptyList()
             _selectedChat.value = null
+            _presenceMap.value = emptyMap()
         }
 
         private fun cancelAllJobs() {
@@ -102,6 +111,7 @@ class ChatsViewModel
             messagePollingJob?.cancel()
             chatRefreshJob?.cancel()
             messageRefreshJob?.cancel()
+            presenceJob?.cancel()
         }
 
         private fun loadMyInfo() {
@@ -133,13 +143,35 @@ class ChatsViewModel
                 trouterClient.events.collect { event ->
                     when (event) {
                         is TrouterClient.Event.NewMessage -> onTrouterMessage(event)
+                        is TrouterClient.Event.PresenceChanged -> onPresenceChanged(event)
+                        is TrouterClient.Event.Connected -> onTrouterConnected()
                         is TrouterClient.Event.Typing -> {}
-                        is TrouterClient.Event.Connected,
-                        is TrouterClient.Event.Disconnected,
-                        -> {}
+                        is TrouterClient.Event.Disconnected -> {}
                     }
                 }
             }
+        }
+
+        private fun onTrouterConnected() {
+            viewModelScope.launch {
+                _chats.first { it.isNotEmpty() }
+                val memberIds = oneOnOneMemberIds()
+                if (memberIds.isNotEmpty()) {
+                    trouterClient.subscribePresence(memberIds)
+                }
+            }
+        }
+
+        private fun oneOnOneMemberIds(): List<String> =
+            _chats.value
+                .filter { it.isOneOnOne && it.memberId != null }
+                .mapNotNull { it.memberId }
+                .distinct()
+
+        private fun onPresenceChanged(event: TrouterClient.Event.PresenceChanged) {
+            val current = _presenceMap.value.toMutableMap()
+            current[event.userId] = event.availability
+            _presenceMap.value = current
         }
 
         private fun onTrouterMessage(event: TrouterClient.Event.NewMessage) {
@@ -194,6 +226,9 @@ class ChatsViewModel
                 try {
                     val msgs = chatRepository.refreshMessages(chat.id)
                     _messages.value = msgs
+                    if (chat.isUnread) {
+                        chatRepository.markChatAsRead(chat.id, msgs.lastOrNull()?.id)
+                    }
                 } catch (e: Exception) {
                     _error.value = "Failed to load messages: ${e.message}"
                 } finally {
@@ -239,6 +274,33 @@ class ChatsViewModel
                         }
                     }
                 }
+        }
+
+        private fun startPresencePolling() {
+            presenceJob?.cancel()
+            presenceJob =
+                viewModelScope.launch {
+                    _chats.first { it.isNotEmpty() }
+                    // Skip initial fetch if Trouter is already connected (it will subscribe)
+                    if (!trouterClient.isConnected.value) {
+                        fetchPresences()
+                    }
+                    while (isActive) {
+                        delay(300_000)
+                        if (!networkMonitor.isOnline.value) continue
+                        fetchPresences()
+                    }
+                }
+        }
+
+        private suspend fun fetchPresences() {
+            val memberIds = oneOnOneMemberIds()
+            if (memberIds.isNotEmpty()) {
+                try {
+                    _presenceMap.value = api.getPresences(memberIds)
+                } catch (_: Exception) {
+                }
+            }
         }
 
         fun stopMessagePolling() {

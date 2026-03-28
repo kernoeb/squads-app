@@ -40,9 +40,32 @@ fun Avatar(
     size: Dp = 44.dp,
     isGroup: Boolean = false,
     photoUrl: String? = null,
+    presence: String? = null,
 ) {
     val shape = if (isGroup) MaterialTheme.shapes.medium else CircleShape
 
+    if (presence != null) {
+        Box(modifier = modifier) {
+            AvatarContent(photoUrl, name, size, shape)
+            PresenceBadge(
+                availability = presence,
+                modifier = Modifier.align(Alignment.BottomEnd),
+                size = (size.value * 0.3f).dp,
+            )
+        }
+    } else {
+        AvatarContent(photoUrl, name, size, shape, modifier)
+    }
+}
+
+@Composable
+private fun AvatarContent(
+    photoUrl: String?,
+    name: String,
+    size: Dp,
+    shape: androidx.compose.ui.graphics.Shape,
+    modifier: Modifier = Modifier,
+) {
     if (photoUrl != null) {
         SubcomposeAsyncImage(
             model = photoUrl,

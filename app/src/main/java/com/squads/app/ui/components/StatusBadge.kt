@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -25,6 +26,39 @@ fun UnreadBadge(modifier: Modifier = Modifier) {
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.primary),
     )
+}
+
+@Composable
+fun PresenceBadge(
+    availability: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 12.dp,
+) {
+    val color =
+        when (availability) {
+            "Available", "AvailableIdle" -> Color(0xFF92C353)
+            "Busy", "BusyIdle" -> Color(0xFFC4314B)
+            "DoNotDisturb" -> Color(0xFFC4314B)
+            "Away", "BeRightBack" -> Color(0xFFFFC107)
+            else -> Color(0xFF8A8886)
+        }
+
+    Box(
+        modifier =
+            modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(size * 0.75f)
+                    .clip(CircleShape)
+                    .background(color),
+        )
+    }
 }
 
 @Composable

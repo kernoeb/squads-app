@@ -56,6 +56,11 @@ class TrouterClient
                 val senderName: String,
             ) : Event()
 
+            data class PresenceChanged(
+                val userId: String,
+                val availability: String,
+            ) : Event()
+
             data object Connected : Event()
 
             data object Disconnected : Event()
@@ -73,6 +78,9 @@ class TrouterClient
 
         @Volatile
         private var reconnectUrl: String? = null
+
+        @Volatile
+        private var trouterSurl: String? = null
 
         @Volatile
         private var scope: CoroutineScope? = null
@@ -103,6 +111,7 @@ class TrouterClient
             reconnectJob = null
             ws?.close(1000, null)
             ws = null
+            trouterSurl = null
             _isConnected.value = false
             scope?.cancel()
             scope = null
@@ -113,7 +122,7 @@ class TrouterClient
             val tc =
                 JSONObject().apply {
                     put("cv", "2026.07.01.1")
-                    put("ua", "SquadsApp")
+                    put("ua", "TeamsCDL")
                     put("hr", "")
                     put("v", "0.1.0")
                 }
@@ -287,6 +296,7 @@ class TrouterClient
             val data = JSONObject(frameData(frame))
             val args = data.getJSONArray("args").getJSONObject(0)
             val surl = args.getString("surl")
+            trouterSurl = surl
             reconnectUrl = args.optString("reconnectUrl").ifEmpty { null }
 
             scope?.launch {
@@ -340,6 +350,13 @@ class TrouterClient
                     }
                 webSocket.send("3:::$ack")
 
+                // Presence notification
+                val url = payload.optString("url", "")
+                if ("unifiedPresenceService" in url) {
+                    handlePresenceNotification(payload.optString("body", ""))
+                    return
+                }
+
                 val body = JSONObject(payload.optString("body", "{}"))
                 val resourceType = body.optString("resourceType", "")
                 val resource = body.optJSONObject("resource") ?: return
@@ -374,8 +391,41 @@ class TrouterClient
                             ),
                         )
                     }
+                    else -> Log.d(TAG, "Unhandled notification: resourceType=$resourceType body=${body.toString().take(500)}")
                 }
             } catch (_: Exception) {
+            }
+        }
+
+        private fun handlePresenceNotification(bodyStr: String) {
+            try {
+                val body = JSONObject(bodyStr)
+                val presenceArr = body.optJSONArray("presence") ?: return
+                for (i in 0 until presenceArr.length()) {
+                    val item = presenceArr.getJSONObject(i)
+                    val mri = item.optString("mri", "")
+                    val userId = mri.removePrefix("8:orgid:")
+                    val presence = item.optJSONObject("presence") ?: continue
+                    val availability = presence.optString("availability", "")
+                    if (userId.isNotEmpty() && availability.isNotEmpty()) {
+                        _events.tryEmit(Event.PresenceChanged(userId, availability))
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Presence parse error", e)
+            }
+        }
+
+        // ─── Presence subscription ────────────────────────────────
+
+        suspend fun subscribePresence(userIds: List<String>) {
+            val surl = trouterSurl ?: return
+            if (userIds.isEmpty()) return
+            try {
+                api.subscribePresence(epid, "$surl/unifiedPresenceService", userIds)
+                Log.d(TAG, "Subscribed presence for ${userIds.size} users")
+            } catch (e: Exception) {
+                Log.e(TAG, "Presence subscription failed", e)
             }
         }
 

@@ -19,7 +19,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -122,6 +121,7 @@ fun ChatDetailScreen(
     val chat by viewModel.selectedChat.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val messagesLoading by viewModel.messagesLoading.collectAsState()
+    val presenceMap by viewModel.presenceMap.collectAsState()
     var inputText by remember { mutableStateOf("") }
     var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
@@ -148,6 +148,12 @@ fun ChatDetailScreen(
             TopAppBar(
                 title = {
                     if (currentChat != null) {
+                        val memberPresence =
+                            if (currentChat.isOneOnOne) {
+                                currentChat.memberId?.let { presenceMap[it] }
+                            } else {
+                                null
+                            }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!currentChat.isOneOnOne && currentChat.memberIds.size >= 2) {
                                 GroupAvatar(
@@ -161,6 +167,7 @@ fun ChatDetailScreen(
                                     size = 36.dp,
                                     isGroup = !currentChat.isOneOnOne,
                                     photoUrl = currentChat.memberId?.let { graphProfilePhotoUrl(it) },
+                                    presence = memberPresence,
                                 )
                             }
                             Spacer(Modifier.width(12.dp))
@@ -172,12 +179,23 @@ fun ChatDetailScreen(
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )
-                                Text(
+                                val subtitle =
                                     if (currentChat.isOneOnOne) {
-                                        "Chat"
+                                        memberPresence?.let { presence ->
+                                            when (presence) {
+                                                "Available", "AvailableIdle" -> "Available"
+                                                "Busy", "BusyIdle" -> "Busy"
+                                                "DoNotDisturb" -> "Do not disturb"
+                                                "Away", "BeRightBack" -> "Away"
+                                                "Offline" -> "Offline"
+                                                else -> "Chat"
+                                            }
+                                        } ?: "Chat"
                                     } else {
                                         "${currentChat.memberCount} members"
-                                    },
+                                    }
+                                Text(
+                                    subtitle,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

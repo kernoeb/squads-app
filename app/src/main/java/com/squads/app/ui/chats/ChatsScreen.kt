@@ -47,6 +47,7 @@ fun ChatsScreen(
 ) {
     val chats by viewModel.chats.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val presenceMap by viewModel.presenceMap.collectAsState()
 
     if (isLoading && chats.isEmpty()) {
         LoadingScreen()
@@ -68,6 +69,7 @@ fun ChatsScreen(
         items(chats, key = { it.id }, contentType = { "chat" }) { chat ->
             ChatRow(
                 chat = chat,
+                presence = if (chat.isOneOnOne) chat.memberId?.let { presenceMap[it] } else null,
                 onClick = {
                     viewModel.selectChat(chat)
                     onChatClick(chat)
@@ -85,6 +87,7 @@ fun ChatsScreen(
 @Composable
 private fun ChatRow(
     chat: ChatConversation,
+    presence: String? = null,
     onClick: () -> Unit,
 ) {
     Row(
@@ -105,6 +108,7 @@ private fun ChatRow(
                 name = chat.title,
                 isGroup = !chat.isOneOnOne,
                 photoUrl = chat.memberId?.let { graphProfilePhotoUrl(it) },
+                presence = presence,
             )
         }
 
