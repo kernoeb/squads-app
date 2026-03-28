@@ -45,8 +45,8 @@ class CalendarApi
                 CalendarEvent(
                     id = e.optString("id"),
                     subject = e.optString("subject", "(No subject)"),
-                    startTime = api.parseTimestamp(e.optJSONObject("start")?.optString("dateTime", "") ?: ""),
-                    endTime = api.parseTimestamp(e.optJSONObject("end")?.optString("dateTime", "") ?: ""),
+                    startTime = parseTimestamp(e.optJSONObject("start")?.optString("dateTime", "") ?: ""),
+                    endTime = parseTimestamp(e.optJSONObject("end")?.optString("dateTime", "") ?: ""),
                     location = e.optJSONObject("location")?.optString("displayName", "")?.ifEmpty { null },
                     organizerName = organizer?.optString("name", "Unknown") ?: "Unknown",
                     isOnlineMeeting = e.optBoolean("isOnlineMeeting", false),

@@ -27,14 +27,14 @@ class MockRepository
 
         // ─── Presence ───────────────────────────────────────────────
 
-        fun getPresences(userIds: List<String>): Map<String, String> =
+        fun getPresences(userIds: List<String>): Map<String, PresenceAvailability> =
             userIds.associateWith { id ->
                 when (id.hashCode().mod(5)) {
-                    0 -> "Available"
-                    1 -> "Busy"
-                    2 -> "Away"
-                    3 -> "Available"
-                    else -> "DoNotDisturb"
+                    0 -> PresenceAvailability.Available
+                    1 -> PresenceAvailability.Busy
+                    2 -> PresenceAvailability.Away
+                    3 -> PresenceAvailability.Available
+                    else -> PresenceAvailability.DoNotDisturb
                 }
             }
 

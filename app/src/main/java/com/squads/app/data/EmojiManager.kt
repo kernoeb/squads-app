@@ -34,10 +34,12 @@ class EmojiManager
             if (initialized) return
             initMutex.withLock {
                 if (initialized) return
-                try {
-                    loadFromCache() || downloadAndCache()
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to initialize emoji mapping", e)
+                withContext(Dispatchers.IO) {
+                    try {
+                        loadFromCache() || downloadAndCache()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to initialize emoji mapping", e)
+                    }
                 }
                 initialized = true
             }
@@ -67,32 +69,33 @@ class EmojiManager
                         .header("User-Agent", USER_AGENT)
                         .build()
 
-                val response = httpClient.newCall(request).execute()
-                if (!response.isSuccessful) return@withContext false
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@withContext false
 
-                val data = JSONObject(response.body.string())
-                val categories = data.optJSONArray("categories") ?: return@withContext false
+                    val data = JSONObject(response.body.string())
+                    val categories = data.optJSONArray("categories") ?: return@withContext false
 
-                val result = JSONObject()
-                for (i in 0 until categories.length()) {
-                    val emoticons = categories.getJSONObject(i).optJSONArray("emoticons") ?: continue
-                    for (j in 0 until emoticons.length()) {
-                        val emo = emoticons.getJSONObject(j)
-                        val id = emo.optString("id", "")
-                        val unicode = emo.optString("unicode", "")
-                        if (id.isNotEmpty() && unicode.isNotEmpty()) {
-                            mapping.putIfAbsent(id, unicode)
-                            result.put(id, unicode)
+                    val result = JSONObject()
+                    for (i in 0 until categories.length()) {
+                        val emoticons = categories.getJSONObject(i).optJSONArray("emoticons") ?: continue
+                        for (j in 0 until emoticons.length()) {
+                            val emo = emoticons.getJSONObject(j)
+                            val id = emo.optString("id", "")
+                            val unicode = emo.optString("unicode", "")
+                            if (id.isNotEmpty() && unicode.isNotEmpty()) {
+                                mapping.putIfAbsent(id, unicode)
+                                result.put(id, unicode)
+                            }
                         }
                     }
-                }
 
-                try {
-                    cacheFile().writeText(result.toString())
-                } catch (e: Exception) {
-                    Log.d(TAG, "Failed to write emoji cache", e)
+                    try {
+                        cacheFile().writeText(result.toString())
+                    } catch (e: Exception) {
+                        Log.d(TAG, "Failed to write emoji cache", e)
+                    }
+                    mapping.isNotEmpty()
                 }
-                mapping.isNotEmpty()
             }
 
         private fun cacheFile(): File = File(context.cacheDir, "teams-emoji.json")

@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.ChatConversation
+import com.squads.app.data.PresenceAvailability
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.ChatAvatar
 import com.squads.app.ui.components.LoadingScreen
@@ -85,7 +86,7 @@ fun ChatsScreen(
 @Composable
 private fun ChatRow(
     chat: ChatConversation,
-    presence: com.squads.app.data.PresenceAvailability? = null,
+    presence: PresenceAvailability? = null,
     onClick: () -> Unit,
 ) {
     Row(

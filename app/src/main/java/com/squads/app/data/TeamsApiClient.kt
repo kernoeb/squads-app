@@ -209,7 +209,7 @@ class TeamsApiClient
 
         // ─── Presence ────────────────────────────────────────────────
 
-        suspend fun getPresences(userIds: List<String>): Map<String, String> {
+        suspend fun getPresences(userIds: List<String>): Map<String, PresenceAvailability> {
             if (isDemoMode) return mockRepository.getPresences(userIds)
             if (userIds.isEmpty()) return emptyMap()
             return try {
@@ -222,12 +222,12 @@ class TeamsApiClient
                         contentType = "application/json",
                         token = token,
                     )
-                val result = mutableMapOf<String, String>()
+                val result = mutableMapOf<String, PresenceAvailability>()
                 for (item in JSONArray(raw).objects()) {
                     val userId = item.str("mri").removePrefix("8:orgid:")
                     val presence = item.optJSONObject("presence")
                     if (presence != null) {
-                        result[userId] = presence.str("availability", "Offline")
+                        result[userId] = PresenceAvailability.fromString(presence.str("availability", "Offline"))
                     }
                 }
                 result
@@ -676,13 +676,6 @@ class TeamsApiClient
             html: String,
         ) = sendMessageInternal(conversationId, html)
 
-        @Deprecated("Use sendTextMessage or sendHtmlMessage", ReplaceWith("sendTextMessage(conversationId, content)"))
-        suspend fun sendMessage(
-            conversationId: String,
-            content: String,
-            rawHtml: Boolean = false,
-        ) = if (rawHtml) sendHtmlMessage(conversationId, content) else sendTextMessage(conversationId, content)
-
         private suspend fun sendMessageInternal(
             conversationId: String,
             htmlContent: String,
@@ -771,27 +764,27 @@ class TeamsApiClient
                 Reaction(emoji = emojiManager.getEmoji(key), count = e.optJSONArray("users")?.length() ?: 0)
             }
         }
+    }
 
-        internal fun parseTimestamp(ts: String): LocalDateTime {
-            if (ts.isBlank()) return LocalDateTime.MIN
-            // Truncate fractional seconds beyond 3 digits (.NET sends 7) for Instant.parse compat
-            val normalized = ts.replace(FRACTIONAL_SECONDS_REGEX, "$1")
-            return try {
-                LocalDateTime.ofInstant(Instant.parse(normalized), ZoneId.systemDefault())
-            } catch (_: Exception) {
-                try {
-                    // Parse as local then convert from UTC → device timezone
-                    val local = LocalDateTime.parse(normalized.removeSuffix("Z"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                    local
-                        .atZone(java.time.ZoneOffset.UTC)
-                        .withZoneSameInstant(ZoneId.systemDefault())
-                        .toLocalDateTime()
-                } catch (_: Exception) {
-                    ts
-                        .toLongOrNull()
-                        ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
-                        ?: LocalDateTime.MIN
-                }
-            }
+/** Parse Teams/Graph API timestamps (ISO-8601, local, or epoch millis) to LocalDateTime. */
+fun parseTimestamp(ts: String): LocalDateTime {
+    if (ts.isBlank()) return LocalDateTime.MIN
+    // Truncate fractional seconds beyond 3 digits (.NET sends 7) for Instant.parse compat
+    val normalized = ts.replace(FRACTIONAL_SECONDS_REGEX, "$1")
+    return try {
+        LocalDateTime.ofInstant(Instant.parse(normalized), ZoneId.systemDefault())
+    } catch (_: Exception) {
+        try {
+            val local = LocalDateTime.parse(normalized.removeSuffix("Z"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            local
+                .atZone(java.time.ZoneOffset.UTC)
+                .withZoneSameInstant(ZoneId.systemDefault())
+                .toLocalDateTime()
+        } catch (_: Exception) {
+            ts
+                .toLongOrNull()
+                ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
+                ?: LocalDateTime.MIN
         }
     }
+}

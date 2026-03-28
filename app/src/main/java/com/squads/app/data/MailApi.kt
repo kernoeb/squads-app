@@ -38,7 +38,7 @@ class MailApi
                 fromName = from?.optString("name", "Unknown") ?: "Unknown",
                 fromAddress = from?.optString("address", "") ?: "",
                 toRecipients = toList,
-                receivedDateTime = api.parseTimestamp(m.optString("receivedDateTime", "")),
+                receivedDateTime = parseTimestamp(m.optString("receivedDateTime", "")),
                 isRead = m.optBoolean("isRead", true),
                 isDraft = m.optBoolean("isDraft", false),
                 hasAttachments = m.optBoolean("hasAttachments", false),

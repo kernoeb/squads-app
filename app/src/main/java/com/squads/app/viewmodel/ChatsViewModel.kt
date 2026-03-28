@@ -317,7 +317,7 @@ class ChatsViewModel
             val memberIds = oneOnOneMemberIds()
             if (memberIds.isNotEmpty()) {
                 try {
-                    _presenceMap.value = api.getPresences(memberIds).mapValues { PresenceAvailability.fromString(it.value) }
+                    _presenceMap.value = api.getPresences(memberIds)
                 } catch (e: Exception) {
                     Log.w(TAG, "Presence fetch failed", e)
                 }
