@@ -53,6 +53,14 @@ test:
 test-device:
     ./gradlew connectedDebugAndroidTest
 
+# Run all Maestro UI tests (requires device/emulator)
+maestro:
+    MAESTRO_CLI_NO_ANALYTICS=1 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true maestro test .maestro/
+
+# Run a single Maestro flow (e.g., just maestro-one demo-login)
+maestro-one flow:
+    MAESTRO_CLI_NO_ANALYTICS=1 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true maestro test .maestro/{{flow}}.yaml
+
 # ─── Info ─────────────────────────────────────────────────────
 
 # Show project dependencies

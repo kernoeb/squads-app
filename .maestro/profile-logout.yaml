@@ -1,0 +1,13 @@
+appId: com.squads.app
+name: "Profile & Logout"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn:
+    text: "Profile"
+
+- assertVisible: "Demo mode"
+- assertVisible: "Squads for Android"
+
+- tapOn: "Sign out"
+- assertVisible: "Sign in with Microsoft"

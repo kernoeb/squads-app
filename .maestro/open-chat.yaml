@@ -1,0 +1,10 @@
+appId: com.squads.app
+name: "Open a Chat"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn: "Alice Martin"
+- assertVisible: "Type a message"
+
+- back
+- assertVisible: "Chats"

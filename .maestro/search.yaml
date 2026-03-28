@@ -1,0 +1,16 @@
+appId: com.squads.app
+name: "Search"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn: "Search"
+- assertVisible: "Search chats, mail, calendar..."
+
+- tapOn: "Search chats, mail, calendar..."
+- inputText: "review"
+
+- assertVisible: "Alice Martin"
+- assertVisible:
+    text: ".*Q1 Review.*"
+- assertVisible:
+    text: ".*Architecture Review.*"

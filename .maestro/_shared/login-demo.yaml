@@ -1,0 +1,8 @@
+appId: com.squads.app
+---
+- clearState
+- launchApp
+- tapOn: "Continue with demo data"
+- extendedWaitUntil:
+    visible: "Chats"
+    timeout: 10000

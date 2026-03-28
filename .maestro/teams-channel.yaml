@@ -1,0 +1,18 @@
+appId: com.squads.app
+name: "Teams Channel Messages"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn: "Teams"
+- assertVisible: "Engineering"
+- assertVisible: "Product"
+
+- tapOn: "Engineering"
+- assertVisible: "General"
+- assertVisible: "Backend"
+
+- tapOn: "General"
+- assertVisible: "# General"
+- assertVisible: "Dev Tanaka"
+- assertVisible: "Alice Martin"
+- assertVisible: "DBA Admin"

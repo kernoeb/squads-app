@@ -1,0 +1,19 @@
+appId: com.squads.app
+name: "Navigate All Tabs"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn: "Calendar"
+- assertVisible: "Calendar"
+
+- tapOn: "Teams"
+- assertVisible: "Teams"
+
+- tapOn: "Search"
+- assertVisible: "Search"
+
+- tapOn: "Mail"
+- assertVisible: "Mail"
+
+- tapOn: "Chats"
+- assertVisible: "Chats"

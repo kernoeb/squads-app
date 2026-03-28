@@ -1,0 +1,5 @@
+appId: com.squads.app
+name: "Demo Login"
+---
+- runFlow: _shared/login-demo.yaml
+- assertVisible: "Chats"
