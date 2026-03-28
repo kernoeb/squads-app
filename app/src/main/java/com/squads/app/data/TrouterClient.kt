@@ -61,6 +61,10 @@ class TrouterClient
                 val availability: String,
             ) : Event()
 
+            data class ReadHorizonUpdate(
+                val chatId: String,
+            ) : Event()
+
             data object Connected : Event()
 
             data object Disconnected : Event()
@@ -367,6 +371,9 @@ class TrouterClient
                 if (chatId.isEmpty()) return
 
                 when {
+                    messageType == "ThreadActivity/MemberConsumptionHorizonUpdate" -> {
+                        _events.tryEmit(Event.ReadHorizonUpdate(chatId))
+                    }
                     messageType == "Control/Typing" -> {
                         val sender = resource.optString("imdisplayname", "")
                         if (sender.isNotEmpty()) {

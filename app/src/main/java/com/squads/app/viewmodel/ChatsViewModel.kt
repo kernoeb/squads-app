@@ -144,6 +144,7 @@ class ChatsViewModel
                     when (event) {
                         is TrouterClient.Event.NewMessage -> onTrouterMessage(event)
                         is TrouterClient.Event.PresenceChanged -> onPresenceChanged(event)
+                        is TrouterClient.Event.ReadHorizonUpdate -> refreshChatsDebounced()
                         is TrouterClient.Event.Connected -> onTrouterConnected()
                         is TrouterClient.Event.Typing -> {}
                         is TrouterClient.Event.Disconnected -> {}
@@ -174,8 +175,7 @@ class ChatsViewModel
             _presenceMap.value = current
         }
 
-        private fun onTrouterMessage(event: TrouterClient.Event.NewMessage) {
-            // Debounce chat list refresh (coalesces rapid-fire messages)
+        private fun refreshChatsDebounced() {
             chatRefreshJob?.cancel()
             chatRefreshJob =
                 viewModelScope.launch {
@@ -186,6 +186,10 @@ class ChatsViewModel
                     } catch (_: Exception) {
                     }
                 }
+        }
+
+        private fun onTrouterMessage(event: TrouterClient.Event.NewMessage) {
+            refreshChatsDebounced()
             // Debounce message refresh for the selected chat
             if (event.chatId == _selectedChat.value?.id) {
                 val chatId = event.chatId
