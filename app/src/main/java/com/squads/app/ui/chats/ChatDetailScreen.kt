@@ -62,8 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.graphProfilePhotoUrl
-import com.squads.app.ui.components.Avatar
-import com.squads.app.ui.components.GroupAvatar
+import com.squads.app.ui.components.ChatAvatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.viewmodel.ChatsViewModel
 import dev.chrisbanes.haze.HazeState
@@ -116,21 +115,11 @@ fun ChatDetailScreen(
                                 null
                             }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (!currentChat.isOneOnOne && currentChat.memberIds.size >= 2) {
-                                GroupAvatar(
-                                    names = currentChat.memberNames,
-                                    size = 36.dp,
-                                    photoUrls = currentChat.memberIds.map { graphProfilePhotoUrl(it) },
-                                )
-                            } else {
-                                Avatar(
-                                    name = currentChat.title,
-                                    size = 36.dp,
-                                    isGroup = !currentChat.isOneOnOne,
-                                    photoUrl = currentChat.memberId?.let { graphProfilePhotoUrl(it) },
-                                    presence = memberPresence,
-                                )
-                            }
+                            ChatAvatar(
+                                chat = currentChat,
+                                size = 36.dp,
+                                presence = memberPresence,
+                            )
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(

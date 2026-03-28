@@ -197,7 +197,6 @@ class TeamsApiClient
                 _myUserId.value = mock.id
                 return mock
             }
-            emojiManager.init()
             val json = JSONObject(graphGet("https://graph.microsoft.com/v1.0/me?\$select=id,displayName,mail,jobTitle"))
             val id = json.str("id")
             _myUserId.value = id
@@ -752,22 +751,32 @@ class TeamsApiClient
 
         // ─── Send message ────────────────────────────────────────────
 
+        suspend fun sendTextMessage(
+            conversationId: String,
+            text: String,
+        ) = sendMessageInternal(conversationId, text.escapeForTeamsHtml())
+
+        suspend fun sendHtmlMessage(
+            conversationId: String,
+            html: String,
+        ) = sendMessageInternal(conversationId, html)
+
+        @Deprecated("Use sendTextMessage or sendHtmlMessage", ReplaceWith("sendTextMessage(conversationId, content)"))
         suspend fun sendMessage(
             conversationId: String,
             content: String,
             rawHtml: Boolean = false,
+        ) = if (rawHtml) sendHtmlMessage(conversationId, content) else sendTextMessage(conversationId, content)
+
+        private suspend fun sendMessageInternal(
+            conversationId: String,
+            htmlContent: String,
         ) {
             if (isDemoMode) return
             val token = getToken(SCOPE_IC3)
             val me = getMe()
             val now = Instant.now().toString()
             val messageId = (Math.random() * Long.MAX_VALUE).toLong().toString()
-            val htmlContent =
-                if (rawHtml) {
-                    content
-                } else {
-                    content.escapeForTeamsHtml()
-                }
 
             val body =
                 JSONObject().apply {

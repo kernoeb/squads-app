@@ -30,10 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.ChatConversation
-import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.data.toRelativeTime
-import com.squads.app.ui.components.Avatar
-import com.squads.app.ui.components.GroupAvatar
+import com.squads.app.ui.components.ChatAvatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.UnreadBadge
@@ -98,19 +96,7 @@ private fun ChatRow(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (!chat.isOneOnOne && chat.memberIds.size >= 2) {
-            GroupAvatar(
-                names = chat.memberNames,
-                photoUrls = chat.memberIds.map { graphProfilePhotoUrl(it) },
-            )
-        } else {
-            Avatar(
-                name = chat.title,
-                isGroup = !chat.isOneOnOne,
-                photoUrl = chat.memberId?.let { graphProfilePhotoUrl(it) },
-                presence = presence,
-            )
-        }
+        ChatAvatar(chat = chat, presence = presence)
 
         Spacer(Modifier.width(14.dp))
 

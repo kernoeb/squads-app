@@ -22,13 +22,14 @@ class HtmlParserTest {
 
     @Test
     fun `parseMessage extracts reply info from blockquote`() {
-        val html = """
+        val html =
+            """
             <blockquote itemtype="http://schema.skype.com/Reply">
                 <strong>Alice</strong>
                 <div itemprop="preview">Original message</div>
             </blockquote>
             <p>My reply</p>
-        """.trimIndent()
+            """.trimIndent()
         val result = HtmlParser.parseMessage(html)
         assertEquals("Alice", result.replyToName)
         assertEquals("Original message", result.replyToPreview)

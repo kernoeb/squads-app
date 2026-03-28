@@ -1,18 +1,20 @@
 package com.squads.app.data
 
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "EmojiManager"
 private const val EMOJI_METADATA_URL =
     "https://statics.teams.cdn.office.net/evergreen-assets/personal-expressions/v1/metadata/a098bcb732fd7dd80ce11c12ad15767f/en-us.json"
 
@@ -21,6 +23,7 @@ class EmojiManager
     @Inject
     constructor(
         private val context: Context,
+        private val httpClient: OkHttpClient,
     ) {
         private val mapping = ConcurrentHashMap<String, String>()
         private val initMutex = Mutex()
@@ -33,7 +36,8 @@ class EmojiManager
                 if (initialized) return
                 try {
                     loadFromCache() || downloadAndCache()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to initialize emoji mapping", e)
                 }
                 initialized = true
             }
@@ -48,21 +52,25 @@ class EmojiManager
                 val json = JSONObject(file.readText())
                 json.keys().forEach { mapping[it] = json.getString(it) }
                 mapping.isNotEmpty()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed to load emoji cache", e)
                 false
             }
         }
 
         private suspend fun downloadAndCache(): Boolean =
             withContext(Dispatchers.IO) {
-                val conn = URL(EMOJI_METADATA_URL).openConnection() as HttpURLConnection
-                conn.connectTimeout = 10_000
-                conn.readTimeout = 10_000
-                conn.setRequestProperty("User-Agent", USER_AGENT)
+                val request =
+                    Request
+                        .Builder()
+                        .url(EMOJI_METADATA_URL)
+                        .header("User-Agent", USER_AGENT)
+                        .build()
 
-                if (conn.responseCode != 200) return@withContext false
+                val response = httpClient.newCall(request).execute()
+                if (!response.isSuccessful) return@withContext false
 
-                val data = JSONObject(conn.inputStream.bufferedReader().readText())
+                val data = JSONObject(response.body.string())
                 val categories = data.optJSONArray("categories") ?: return@withContext false
 
                 val result = JSONObject()
@@ -81,7 +89,8 @@ class EmojiManager
 
                 try {
                     cacheFile().writeText(result.toString())
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.d(TAG, "Failed to write emoji cache", e)
                 }
                 mapping.isNotEmpty()
             }

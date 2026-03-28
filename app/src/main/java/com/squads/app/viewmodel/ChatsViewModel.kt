@@ -5,11 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
 import com.squads.app.data.ChatConversation
-import com.squads.app.data.escapeForTeamsHtml
 import com.squads.app.data.ChatMessage
+import com.squads.app.data.EmojiManager
 import com.squads.app.data.NetworkMonitor
 import com.squads.app.data.TeamsApiClient
 import com.squads.app.data.TrouterClient
+import com.squads.app.data.escapeForTeamsHtml
 import com.squads.app.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -31,6 +32,7 @@ class ChatsViewModel
         private val networkMonitor: NetworkMonitor,
         private val trouterClient: TrouterClient,
         private val authManager: AuthManager,
+        private val emojiManager: EmojiManager,
     ) : ViewModel() {
         private val _chats = MutableStateFlow<List<ChatConversation>>(emptyList())
 
@@ -68,6 +70,7 @@ class ChatsViewModel
 
         init {
             api.invalidateCache()
+            viewModelScope.launch { emojiManager.init() }
             viewModelScope.launch { chatRepository.observeChats().collect { _chats.value = it } }
             refreshChats()
             startChatPolling()
@@ -373,9 +376,9 @@ class ChatsViewModel
                 try {
                     chatRepository.insertLocalMessage(chatId, newMsg)
                     if (replyTo != null) {
-                        api.sendMessage(chatId, htmlContent, rawHtml = true)
+                        api.sendHtmlMessage(chatId, htmlContent)
                     } else {
-                        api.sendMessage(chatId, content)
+                        api.sendTextMessage(chatId, content)
                     }
                 } catch (e: Exception) {
                     _error.value = "Failed to send: ${e.message}"
