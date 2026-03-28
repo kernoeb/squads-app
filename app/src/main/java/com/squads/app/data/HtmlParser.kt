@@ -86,3 +86,10 @@ object HtmlParser {
         return false
     }
 }
+
+/** Escape plain text for safe embedding in Teams HTML messages. */
+fun String.escapeForTeamsHtml(): String =
+    replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br>")

@@ -1,5 +1,6 @@
 package com.squads.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
@@ -74,7 +75,8 @@ class SearchViewModel
                                             id = it.id,
                                         )
                                     }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.w("SearchViewModel", "Chat search failed", e)
                                 emptyList()
                             }
                         }
@@ -95,7 +97,8 @@ class SearchViewModel
                                             id = it.id,
                                         )
                                     }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.w("SearchViewModel", "Mail search failed", e)
                                 emptyList()
                             }
                         }

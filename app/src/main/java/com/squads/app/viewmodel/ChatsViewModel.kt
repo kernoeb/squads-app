@@ -1,9 +1,11 @@
 package com.squads.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
 import com.squads.app.data.ChatConversation
+import com.squads.app.data.escapeForTeamsHtml
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.NetworkMonitor
 import com.squads.app.data.TeamsApiClient
@@ -31,6 +33,11 @@ class ChatsViewModel
         private val authManager: AuthManager,
     ) : ViewModel() {
         private val _chats = MutableStateFlow<List<ChatConversation>>(emptyList())
+
+        companion object {
+            private const val TAG = "ChatsViewModel"
+        }
+
         val chats: StateFlow<List<ChatConversation>> = _chats
 
         private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -119,7 +126,8 @@ class ChatsViewModel
                 try {
                     val me = api.getMe()
                     myDisplayName = me.displayName
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load user info", e)
                 }
             }
         }
@@ -183,7 +191,8 @@ class ChatsViewModel
                     api.invalidateCache()
                     try {
                         chatRepository.refreshChats()
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Debounced chat refresh failed", e)
                     }
                 }
         }
@@ -201,7 +210,8 @@ class ChatsViewModel
                         try {
                             val fresh = chatRepository.refreshMessages(chatId)
                             _messages.value = mergeWithOptimistic(fresh)
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Trouter message refresh failed", e)
                         }
                     }
             }
@@ -216,7 +226,8 @@ class ChatsViewModel
                         if (!networkMonitor.isOnline.value) continue
                         try {
                             chatRepository.refreshChats()
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Chat polling refresh failed", e)
                         }
                     }
                 }
@@ -274,7 +285,8 @@ class ChatsViewModel
                             ) {
                                 _messages.value = merged
                             }
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Message polling refresh failed", e)
                         }
                     }
                 }
@@ -302,7 +314,8 @@ class ChatsViewModel
             if (memberIds.isNotEmpty()) {
                 try {
                     _presenceMap.value = api.getPresences(memberIds)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Presence fetch failed", e)
                 }
             }
         }
@@ -322,23 +335,13 @@ class ChatsViewModel
             val senderObjectId = api.myUserId.value ?: ""
             val senderDisplayName = myDisplayName ?: "You"
 
-            val escapedContent =
-                content
-                    .replace("&", "&amp;")
-                    .replace("<", "&lt;")
-                    .replace(">", "&gt;")
-                    .replace("\n", "<br>")
+            val escapedContent = content.escapeForTeamsHtml()
 
             val htmlContent =
                 if (replyTo != null) {
                     val replyName =
                         if (replyTo.isFromMe) senderDisplayName else replyTo.senderName
-                    val preview =
-                        replyTo.content
-                            .take(200)
-                            .replace("&", "&amp;")
-                            .replace("<", "&lt;")
-                            .replace(">", "&gt;")
+                    val preview = replyTo.content.take(200).escapeForTeamsHtml()
                     "<blockquote itemtype=\"http://schema.skype.com/Reply\">" +
                         "<strong>$replyName</strong>" +
                         "<div itemprop=\"preview\">$preview</div>" +

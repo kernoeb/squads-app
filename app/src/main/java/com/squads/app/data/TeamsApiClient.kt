@@ -1,6 +1,7 @@
 package com.squads.app.data
 
 import android.net.Uri
+import android.util.Log
 import com.squads.app.auth.AuthManager
 import com.squads.app.auth.OAuthConfig
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +45,10 @@ class TeamsApiClient
         private val httpClient: OkHttpClient,
         private val mockRepository: MockRepository,
     ) {
+        companion object {
+            private const val TAG = "TeamsApiClient"
+        }
+
         private val isDemoMode: Boolean
             get() = authManager.isDemoMode
         private val tokenCache = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Long>>()
@@ -228,7 +233,8 @@ class TeamsApiClient
                     }
                 }
                 result
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to fetch presences", e)
                 emptyMap()
             }
         }
@@ -252,7 +258,8 @@ class TeamsApiClient
                     token = token,
                 )
                 invalidateCache()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to mark chat as read: $chatId", e)
             }
         }
 
@@ -302,7 +309,8 @@ class TeamsApiClient
             return try {
                 val json = JSONObject(graphGet("https://graph.microsoft.com/v1.0/users/$userId?\$select=displayName"))
                 json.str("displayName").ifEmpty { null }?.also { userNameCache[userId] = it }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed to resolve user name: $userId", e)
                 null
             }
         }
@@ -348,7 +356,8 @@ class TeamsApiClient
                                         }
                                     }
                                 }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.d(TAG, "Failed to resolve user via messages", e)
                             }
                         }
                     }.awaitAll()
@@ -378,7 +387,8 @@ class TeamsApiClient
             val myUserId =
                 try {
                     getMyUserId()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to get user ID during getUserDetails", e)
                     ""
                 }
 
@@ -574,7 +584,8 @@ class TeamsApiClient
             val myUserId =
                 try {
                     getMyUserId()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to get user ID during getChatMessages", e)
                     ""
                 }
 
@@ -755,11 +766,7 @@ class TeamsApiClient
                 if (rawHtml) {
                     content
                 } else {
-                    content
-                        .replace("&", "&amp;")
-                        .replace("<", "&lt;")
-                        .replace(">", "&gt;")
-                        .replace("\n", "<br>")
+                    content.escapeForTeamsHtml()
                 }
 
             val body =
@@ -864,17 +871,3 @@ class TeamsApiClient
             }
         }
     }
-
-// ─── JSON extension helpers ──────────────────────────────────────
-
-/** Safe string extraction — returns [fallback] for null and JSON-null values. */
-private fun JSONObject.str(
-    key: String,
-    fallback: String = "",
-): String {
-    if (isNull(key)) return fallback
-    return optString(key, fallback)
-}
-
-/** Iterate a JSONArray as a sequence of JSONObjects. */
-private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }

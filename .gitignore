@@ -20,3 +20,4 @@ META-INF/
 .env
 *.hprof
 .gstack/
+/.desloppify

@@ -1,5 +1,6 @@
 package com.squads.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
@@ -72,7 +73,8 @@ class MailViewModel
             viewModelScope.launch {
                 try {
                     _selectedMail.value = api.getMailDetail(mail.id)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w("MailViewModel", "Failed to load mail detail", e)
                 }
             }
         }
