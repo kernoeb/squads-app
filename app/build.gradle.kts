@@ -33,8 +33,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     buildFeatures {
@@ -44,7 +44,7 @@ android {
 
 dependencies {
     // Compose BOM — single version for all Compose libs
-    val composeBom = platform("androidx.compose:compose-bom:2026.03.00")
+    val composeBom = platform("androidx.compose:compose-bom:2026.03.01")
     implementation(composeBom)
 
     // Compose UI
@@ -94,7 +94,7 @@ dependencies {
     implementation("org.jsoup:jsoup:1.22.1")
 
     // Browser (CustomTab for OAuth)
-    implementation("androidx.browser:browser:1.9.0")
+    implementation("androidx.browser:browser:1.10.0")
 
     // Baseline profile installer
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")

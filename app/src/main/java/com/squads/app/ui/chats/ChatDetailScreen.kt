@@ -19,6 +19,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -350,7 +351,7 @@ private fun ImageViewer(
     var offsetY by remember { mutableFloatStateOf(0f) }
 
     val transformableState =
-        rememberTransformableState { zoomChange, panChange, _ ->
+        rememberTransformableState { _, zoomChange, panChange, _ ->
             scale = (scale * zoomChange).coerceIn(1f, 5f)
             if (scale > 1f) {
                 offsetX += panChange.x

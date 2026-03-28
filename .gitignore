@@ -19,3 +19,4 @@ META-INF/
 *.env
 .env
 *.hprof
+.gstack/
