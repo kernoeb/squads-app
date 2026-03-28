@@ -96,8 +96,8 @@ ship version:
     set -euo pipefail
     old_code=$(grep 'versionCode' app/build.gradle.kts | grep -o '[0-9]*')
     new_code=$((old_code + 1))
-    sed -i '' "s/versionCode = $old_code/versionCode = $new_code/" app/build.gradle.kts
-    sed -i '' 's/versionName = "[^"]*"/versionName = "{{version}}"/' app/build.gradle.kts
+    sed -i "s/versionCode = $old_code/versionCode = $new_code/" app/build.gradle.kts
+    sed -i 's/versionName = "[^"]*"/versionName = "{{version}}"/' app/build.gradle.kts
     git add app/build.gradle.kts
     git commit -m "bump version to {{version}}"
     git tag "v{{version}}"
