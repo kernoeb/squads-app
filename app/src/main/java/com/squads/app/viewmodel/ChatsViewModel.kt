@@ -8,6 +8,7 @@ import com.squads.app.data.ChatConversation
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.EmojiManager
 import com.squads.app.data.NetworkMonitor
+import com.squads.app.data.PresenceAvailability
 import com.squads.app.data.TeamsApiClient
 import com.squads.app.data.TrouterClient
 import com.squads.app.data.escapeForTeamsHtml
@@ -48,8 +49,8 @@ class ChatsViewModel
         private val _selectedChat = MutableStateFlow<ChatConversation?>(null)
         val selectedChat: StateFlow<ChatConversation?> = _selectedChat
 
-        private val _presenceMap = MutableStateFlow<Map<String, String>>(emptyMap())
-        val presenceMap: StateFlow<Map<String, String>> = _presenceMap
+        private val _presenceMap = MutableStateFlow<Map<String, PresenceAvailability>>(emptyMap())
+        val presenceMap: StateFlow<Map<String, PresenceAvailability>> = _presenceMap
 
         private val _isLoading = MutableStateFlow(false)
         val isLoading: StateFlow<Boolean> = _isLoading
@@ -182,7 +183,7 @@ class ChatsViewModel
 
         private fun onPresenceChanged(event: TrouterClient.Event.PresenceChanged) {
             val current = _presenceMap.value.toMutableMap()
-            current[event.userId] = event.availability
+            current[event.userId] = PresenceAvailability.fromString(event.availability)
             _presenceMap.value = current
         }
 
@@ -316,7 +317,7 @@ class ChatsViewModel
             val memberIds = oneOnOneMemberIds()
             if (memberIds.isNotEmpty()) {
                 try {
-                    _presenceMap.value = api.getPresences(memberIds)
+                    _presenceMap.value = api.getPresences(memberIds).mapValues { PresenceAvailability.fromString(it.value) }
                 } catch (e: Exception) {
                     Log.w(TAG, "Presence fetch failed", e)
                 }

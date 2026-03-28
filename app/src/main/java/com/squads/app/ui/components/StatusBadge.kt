@@ -30,17 +30,25 @@ fun UnreadBadge(modifier: Modifier = Modifier) {
 
 @Composable
 fun PresenceBadge(
-    availability: String,
+    availability: com.squads.app.data.PresenceAvailability,
     modifier: Modifier = Modifier,
     size: Dp = 12.dp,
 ) {
     val color =
         when (availability) {
-            "Available", "AvailableIdle" -> Color(0xFF92C353)
-            "Busy", "BusyIdle" -> Color(0xFFC4314B)
-            "DoNotDisturb" -> Color(0xFFC4314B)
-            "Away", "BeRightBack" -> Color(0xFFFFC107)
-            else -> Color(0xFF8A8886)
+            com.squads.app.data.PresenceAvailability.Available,
+            com.squads.app.data.PresenceAvailability.AvailableIdle,
+            -> Color(0xFF92C353)
+            com.squads.app.data.PresenceAvailability.Busy,
+            com.squads.app.data.PresenceAvailability.BusyIdle,
+            com.squads.app.data.PresenceAvailability.DoNotDisturb,
+            -> Color(0xFFC4314B)
+            com.squads.app.data.PresenceAvailability.Away,
+            com.squads.app.data.PresenceAvailability.BeRightBack,
+            -> Color(0xFFFFC107)
+            com.squads.app.data.PresenceAvailability.Offline,
+            com.squads.app.data.PresenceAvailability.Unknown,
+            -> Color(0xFF8A8886)
         }
 
     Box(

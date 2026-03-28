@@ -131,16 +131,7 @@ fun ChatDetailScreen(
                                 )
                                 val subtitle =
                                     if (currentChat.isOneOnOne) {
-                                        memberPresence?.let { presence ->
-                                            when (presence) {
-                                                "Available", "AvailableIdle" -> "Available"
-                                                "Busy", "BusyIdle" -> "Busy"
-                                                "DoNotDisturb" -> "Do not disturb"
-                                                "Away", "BeRightBack" -> "Away"
-                                                "Offline" -> "Offline"
-                                                else -> "Chat"
-                                            }
-                                        } ?: "Chat"
+                                        memberPresence?.displayName ?: "Chat"
                                     } else {
                                         "${currentChat.memberCount} members"
                                     }

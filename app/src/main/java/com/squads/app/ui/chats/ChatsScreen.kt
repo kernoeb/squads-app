@@ -85,7 +85,7 @@ fun ChatsScreen(
 @Composable
 private fun ChatRow(
     chat: ChatConversation,
-    presence: String? = null,
+    presence: com.squads.app.data.PresenceAvailability? = null,
     onClick: () -> Unit,
 ) {
     Row(

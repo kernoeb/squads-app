@@ -40,7 +40,7 @@ fun Avatar(
     size: Dp = 44.dp,
     isGroup: Boolean = false,
     photoUrl: String? = null,
-    presence: String? = null,
+    presence: com.squads.app.data.PresenceAvailability? = null,
 ) {
     val shape = if (isGroup) MaterialTheme.shapes.medium else CircleShape
 

@@ -23,7 +23,6 @@ class MockRepository
                 displayName = "You",
                 email = "you@contoso.com",
                 jobTitle = "Software Engineer",
-                availability = "Available",
             )
 
         // ─── Presence ───────────────────────────────────────────────

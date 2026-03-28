@@ -108,8 +108,28 @@ data class UserProfile(
     val displayName: String,
     val email: String,
     val jobTitle: String? = null,
-    val availability: String = "Available", // Available, Busy, Away, DoNotDisturb, Offline
 )
+
+enum class PresenceAvailability(
+    val displayName: String,
+) {
+    Available("Available"),
+    AvailableIdle("Available"),
+    Busy("Busy"),
+    BusyIdle("Busy"),
+    DoNotDisturb("Do not disturb"),
+    Away("Away"),
+    BeRightBack("Away"),
+    Offline("Offline"),
+    Unknown("Unknown"),
+    ;
+
+    val isOnline: Boolean get() = this != Offline && this != Unknown
+
+    companion object {
+        fun fromString(value: String): PresenceAvailability = entries.find { it.name.equals(value, ignoreCase = true) } ?: Unknown
+    }
+}
 
 // ─── Search models ──────────────────────────────────────────────
 
