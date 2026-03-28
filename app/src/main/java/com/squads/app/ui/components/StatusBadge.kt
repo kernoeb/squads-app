@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.squads.app.data.PresenceAvailability
 
 @Composable
 fun UnreadBadge(modifier: Modifier = Modifier) {
@@ -30,17 +31,25 @@ fun UnreadBadge(modifier: Modifier = Modifier) {
 
 @Composable
 fun PresenceBadge(
-    availability: String,
+    availability: PresenceAvailability,
     modifier: Modifier = Modifier,
     size: Dp = 12.dp,
 ) {
     val color =
         when (availability) {
-            "Available", "AvailableIdle" -> Color(0xFF92C353)
-            "Busy", "BusyIdle" -> Color(0xFFC4314B)
-            "DoNotDisturb" -> Color(0xFFC4314B)
-            "Away", "BeRightBack" -> Color(0xFFFFC107)
-            else -> Color(0xFF8A8886)
+            PresenceAvailability.Available,
+            PresenceAvailability.AvailableIdle,
+            -> Color(0xFF92C353)
+            PresenceAvailability.Busy,
+            PresenceAvailability.BusyIdle,
+            PresenceAvailability.DoNotDisturb,
+            -> Color(0xFFC4314B)
+            PresenceAvailability.Away,
+            PresenceAvailability.BeRightBack,
+            -> Color(0xFFFFC107)
+            PresenceAvailability.Offline,
+            PresenceAvailability.Unknown,
+            -> Color(0xFF8A8886)
         }
 
     Box(

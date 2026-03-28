@@ -1,6 +1,7 @@
 package com.squads.app.data
 
 import android.net.Uri
+import android.util.Log
 import com.squads.app.auth.AuthManager
 import com.squads.app.auth.OAuthConfig
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +22,6 @@ import org.json.JSONObject
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
@@ -42,9 +42,13 @@ class TeamsApiClient
         private val authManager: AuthManager,
         private val emojiManager: EmojiManager,
         private val httpClient: OkHttpClient,
-        private val mockRepository: MockRepository,
+        internal val mockRepository: MockRepository,
     ) {
-        private val isDemoMode: Boolean
+        companion object {
+            private const val TAG = "TeamsApiClient"
+        }
+
+        internal val isDemoMode: Boolean
             get() = authManager.isDemoMode
         private val tokenCache = java.util.concurrent.ConcurrentHashMap<String, Pair<String, Long>>()
         private val tokenMutex = Mutex()
@@ -107,7 +111,7 @@ class TeamsApiClient
 
         // ─── HTTP helpers ────────────────────────────────────────────
 
-        private suspend fun httpGet(
+        internal suspend fun httpGet(
             url: String,
             token: String,
         ): String =
@@ -128,7 +132,7 @@ class TeamsApiClient
                 }
             }
 
-        private suspend fun httpPostRaw(
+        internal suspend fun httpPostRaw(
             url: String,
             body: String,
             contentType: String,
@@ -155,7 +159,7 @@ class TeamsApiClient
                 }
             }
 
-        private suspend fun httpPost(
+        internal suspend fun httpPost(
             url: String,
             body: String,
             contentType: String,
@@ -163,7 +167,7 @@ class TeamsApiClient
             token: String? = null,
         ): JSONObject = JSONObject(httpPostRaw(url, body, contentType, headers, token))
 
-        private suspend fun authenticatedGet(
+        internal suspend fun authenticatedGet(
             url: String,
             scope: String,
         ): String {
@@ -171,7 +175,7 @@ class TeamsApiClient
             return httpGet(url, token)
         }
 
-        private suspend fun graphGet(path: String) = authenticatedGet(path, SCOPE_GRAPH)
+        internal suspend fun graphGet(path: String) = authenticatedGet(path, SCOPE_GRAPH)
 
         /** IC3 token for Trouter auth + registrar. */
         suspend fun getIc3Token(): String = getToken(SCOPE_IC3)
@@ -192,7 +196,6 @@ class TeamsApiClient
                 _myUserId.value = mock.id
                 return mock
             }
-            emojiManager.init()
             val json = JSONObject(graphGet("https://graph.microsoft.com/v1.0/me?\$select=id,displayName,mail,jobTitle"))
             val id = json.str("id")
             _myUserId.value = id
@@ -206,7 +209,7 @@ class TeamsApiClient
 
         // ─── Presence ────────────────────────────────────────────────
 
-        suspend fun getPresences(userIds: List<String>): Map<String, String> {
+        suspend fun getPresences(userIds: List<String>): Map<String, PresenceAvailability> {
             if (isDemoMode) return mockRepository.getPresences(userIds)
             if (userIds.isEmpty()) return emptyMap()
             return try {
@@ -219,16 +222,17 @@ class TeamsApiClient
                         contentType = "application/json",
                         token = token,
                     )
-                val result = mutableMapOf<String, String>()
+                val result = mutableMapOf<String, PresenceAvailability>()
                 for (item in JSONArray(raw).objects()) {
                     val userId = item.str("mri").removePrefix("8:orgid:")
                     val presence = item.optJSONObject("presence")
                     if (presence != null) {
-                        result[userId] = presence.str("availability", "Offline")
+                        result[userId] = PresenceAvailability.fromString(presence.str("availability", "Offline"))
                     }
                 }
                 result
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to fetch presences", e)
                 emptyMap()
             }
         }
@@ -252,7 +256,8 @@ class TeamsApiClient
                     token = token,
                 )
                 invalidateCache()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to mark chat as read: $chatId", e)
             }
         }
 
@@ -302,7 +307,8 @@ class TeamsApiClient
             return try {
                 val json = JSONObject(graphGet("https://graph.microsoft.com/v1.0/users/$userId?\$select=displayName"))
                 json.str("displayName").ifEmpty { null }?.also { userNameCache[userId] = it }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed to resolve user name: $userId", e)
                 null
             }
         }
@@ -348,7 +354,8 @@ class TeamsApiClient
                                         }
                                     }
                                 }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.d(TAG, "Failed to resolve user via messages", e)
                             }
                         }
                     }.awaitAll()
@@ -378,7 +385,8 @@ class TeamsApiClient
             val myUserId =
                 try {
                     getMyUserId()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to get user ID during getUserDetails", e)
                     ""
                 }
 
@@ -574,7 +582,8 @@ class TeamsApiClient
             val myUserId =
                 try {
                     getMyUserId()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to get user ID during getChatMessages", e)
                     ""
                 }
 
@@ -610,90 +619,6 @@ class TeamsApiClient
             url
                 .removePrefix("https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/contacts/")
                 .removePrefix("https://notifications.skype.net/v1/users/ME/contacts/")
-
-        // ─── Mail ────────────────────────────────────────────────────
-
-        suspend fun getMail(limit: Int = 25): List<MailMessage> {
-            if (isDemoMode) return mockRepository.getMail()
-            val url = "https://graph.microsoft.com/v1.0/me/messages?\$top=$limit&\$orderby=receivedDateTime desc"
-            val arr = JSONObject(graphGet(url)).optJSONArray("value") ?: return emptyList()
-            return arr.objects().map(::parseMailMessage)
-        }
-
-        suspend fun getMailDetail(messageId: String): MailMessage {
-            if (isDemoMode) return mockRepository.getMailDetail(messageId)
-            return parseMailMessage(JSONObject(graphGet("https://graph.microsoft.com/v1.0/me/messages/$messageId")))
-        }
-
-        private fun parseMailMessage(m: JSONObject): MailMessage {
-            val from = m.optJSONObject("from")?.optJSONObject("emailAddress")
-            val toList =
-                (m.optJSONArray("toRecipients") ?: JSONArray())
-                    .objects()
-                    .map { it.optJSONObject("emailAddress")?.optString("address", "") ?: "" }
-
-            return MailMessage(
-                id = m.optString("id"),
-                subject = m.optString("subject", "(No subject)"),
-                bodyPreview = m.optString("bodyPreview", ""),
-                body = m.optJSONObject("body")?.optString("content", "") ?: "",
-                fromName = from?.optString("name", "Unknown") ?: "Unknown",
-                fromAddress = from?.optString("address", "") ?: "",
-                toRecipients = toList,
-                receivedDateTime = parseTimestamp(m.optString("receivedDateTime", "")),
-                isRead = m.optBoolean("isRead", true),
-                isDraft = m.optBoolean("isDraft", false),
-                hasAttachments = m.optBoolean("hasAttachments", false),
-                importance = m.optString("importance", "normal"),
-            )
-        }
-
-        // ─── Calendar ────────────────────────────────────────────────
-
-        suspend fun getEvents(days: Int): List<CalendarEvent> {
-            if (isDemoMode) return if (days <= 1) mockRepository.getTodayEvents() else mockRepository.getWeekEvents()
-            val now = ZonedDateTime.now(ZoneId.of("UTC"))
-            val start = now.toLocalDate().atStartOfDay(ZoneId.of("UTC")).format(DateTimeFormatter.ISO_INSTANT)
-            val end =
-                now
-                    .toLocalDate()
-                    .plusDays(days.toLong())
-                    .atStartOfDay(ZoneId.of("UTC"))
-                    .format(DateTimeFormatter.ISO_INSTANT)
-
-            val url =
-                "https://graph.microsoft.com/v1.0/me/calendarView" +
-                    "?startDateTime=$start&endDateTime=$end&\$orderby=start/dateTime&\$top=50"
-            val arr = JSONObject(graphGet(url)).optJSONArray("value") ?: return emptyList()
-
-            return arr.objects().map { e ->
-                val organizer = e.optJSONObject("organizer")?.optJSONObject("emailAddress")
-                val attendees =
-                    (e.optJSONArray("attendees") ?: JSONArray()).objects().map { a ->
-                        val email = a.optJSONObject("emailAddress")
-                        EventAttendee(
-                            name = email?.optString("name", "") ?: "",
-                            email = email?.optString("address", "") ?: "",
-                            response = a.optJSONObject("status")?.optString("response", "none") ?: "none",
-                        )
-                    }
-
-                CalendarEvent(
-                    id = e.optString("id"),
-                    subject = e.optString("subject", "(No subject)"),
-                    startTime = parseTimestamp(e.optJSONObject("start")?.optString("dateTime", "") ?: ""),
-                    endTime = parseTimestamp(e.optJSONObject("end")?.optString("dateTime", "") ?: ""),
-                    location = e.optJSONObject("location")?.optString("displayName", "")?.ifEmpty { null },
-                    organizerName = organizer?.optString("name", "Unknown") ?: "Unknown",
-                    isOnlineMeeting = e.optBoolean("isOnlineMeeting", false),
-                    meetingUrl = e.optJSONObject("onlineMeeting")?.optString("joinUrl", ""),
-                    isAllDay = e.optBoolean("isAllDay", false),
-                    isCancelled = e.optBoolean("isCancelled", false),
-                    responseStatus = e.optJSONObject("responseStatus")?.optString("response", "none") ?: "none",
-                    attendees = attendees,
-                )
-            }
-        }
 
         // ─── Teams / channels ────────────────────────────────────────
 
@@ -741,26 +666,25 @@ class TeamsApiClient
 
         // ─── Send message ────────────────────────────────────────────
 
-        suspend fun sendMessage(
+        suspend fun sendTextMessage(
             conversationId: String,
-            content: String,
-            rawHtml: Boolean = false,
+            text: String,
+        ) = sendMessageInternal(conversationId, text.escapeForTeamsHtml())
+
+        suspend fun sendHtmlMessage(
+            conversationId: String,
+            html: String,
+        ) = sendMessageInternal(conversationId, html)
+
+        private suspend fun sendMessageInternal(
+            conversationId: String,
+            htmlContent: String,
         ) {
             if (isDemoMode) return
             val token = getToken(SCOPE_IC3)
             val me = getMe()
             val now = Instant.now().toString()
             val messageId = (Math.random() * Long.MAX_VALUE).toLong().toString()
-            val htmlContent =
-                if (rawHtml) {
-                    content
-                } else {
-                    content
-                        .replace("&", "&amp;")
-                        .replace("<", "&lt;")
-                        .replace(">", "&gt;")
-                        .replace("\n", "<br>")
-                }
 
             val body =
                 JSONObject().apply {
@@ -809,7 +733,7 @@ class TeamsApiClient
 
         // ─── HTTP PUT helper ─────────────────────────────────────────
 
-        private suspend fun httpPut(
+        internal suspend fun httpPut(
             url: String,
             body: String,
             contentType: String,
@@ -840,41 +764,27 @@ class TeamsApiClient
                 Reaction(emoji = emojiManager.getEmoji(key), count = e.optJSONArray("users")?.length() ?: 0)
             }
         }
-
-        private fun parseTimestamp(ts: String): LocalDateTime {
-            if (ts.isBlank()) return LocalDateTime.MIN
-            // Truncate fractional seconds beyond 3 digits (.NET sends 7) for Instant.parse compat
-            val normalized = ts.replace(FRACTIONAL_SECONDS_REGEX, "$1")
-            return try {
-                LocalDateTime.ofInstant(Instant.parse(normalized), ZoneId.systemDefault())
-            } catch (_: Exception) {
-                try {
-                    // Parse as local then convert from UTC → device timezone
-                    val local = LocalDateTime.parse(normalized.removeSuffix("Z"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-                    local
-                        .atZone(java.time.ZoneOffset.UTC)
-                        .withZoneSameInstant(ZoneId.systemDefault())
-                        .toLocalDateTime()
-                } catch (_: Exception) {
-                    ts
-                        .toLongOrNull()
-                        ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
-                        ?: LocalDateTime.MIN
-                }
-            }
-        }
     }
 
-// ─── JSON extension helpers ──────────────────────────────────────
-
-/** Safe string extraction — returns [fallback] for null and JSON-null values. */
-private fun JSONObject.str(
-    key: String,
-    fallback: String = "",
-): String {
-    if (isNull(key)) return fallback
-    return optString(key, fallback)
+/** Parse Teams/Graph API timestamps (ISO-8601, local, or epoch millis) to LocalDateTime. */
+fun parseTimestamp(ts: String): LocalDateTime {
+    if (ts.isBlank()) return LocalDateTime.MIN
+    // Truncate fractional seconds beyond 3 digits (.NET sends 7) for Instant.parse compat
+    val normalized = ts.replace(FRACTIONAL_SECONDS_REGEX, "$1")
+    return try {
+        LocalDateTime.ofInstant(Instant.parse(normalized), ZoneId.systemDefault())
+    } catch (_: Exception) {
+        try {
+            val local = LocalDateTime.parse(normalized.removeSuffix("Z"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            local
+                .atZone(java.time.ZoneOffset.UTC)
+                .withZoneSameInstant(ZoneId.systemDefault())
+                .toLocalDateTime()
+        } catch (_: Exception) {
+            ts
+                .toLongOrNull()
+                ?.let { LocalDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneId.systemDefault()) }
+                ?: LocalDateTime.MIN
+        }
+    }
 }
-
-/** Iterate a JSONArray as a sequence of JSONObjects. */
-private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }

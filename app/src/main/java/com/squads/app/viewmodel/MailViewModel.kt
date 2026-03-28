@@ -1,10 +1,11 @@
 package com.squads.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
+import com.squads.app.data.MailApi
 import com.squads.app.data.MailMessage
-import com.squads.app.data.TeamsApiClient
 import com.squads.app.data.repository.MailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +19,7 @@ import javax.inject.Inject
 class MailViewModel
     @Inject
     constructor(
-        private val api: TeamsApiClient,
+        private val mailApi: MailApi,
         private val mailRepository: MailRepository,
         private val authManager: AuthManager,
     ) : ViewModel() {
@@ -71,8 +72,9 @@ class MailViewModel
             _selectedMail.value = mail
             viewModelScope.launch {
                 try {
-                    _selectedMail.value = api.getMailDetail(mail.id)
-                } catch (_: Exception) {
+                    _selectedMail.value = mailApi.getMailDetail(mail.id)
+                } catch (e: Exception) {
+                    Log.w("MailViewModel", "Failed to load mail detail", e)
                 }
             }
         }

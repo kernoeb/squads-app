@@ -1,8 +1,10 @@
 package com.squads.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
+import com.squads.app.data.MailApi
 import com.squads.app.data.SearchResult
 import com.squads.app.data.SearchResultType
 import com.squads.app.data.TeamsApiClient
@@ -20,6 +22,7 @@ class SearchViewModel
     @Inject
     constructor(
         private val api: TeamsApiClient,
+        private val mailApi: MailApi,
         private val authManager: AuthManager,
     ) : ViewModel() {
         private val _query = MutableStateFlow("")
@@ -74,7 +77,8 @@ class SearchViewModel
                                             id = it.id,
                                         )
                                     }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.w("SearchViewModel", "Chat search failed", e)
                                 emptyList()
                             }
                         }
@@ -82,7 +86,7 @@ class SearchViewModel
                     val mailDeferred =
                         async {
                             try {
-                                api
+                                mailApi
                                     .getMail(50)
                                     .filter {
                                         it.subject.lowercase().contains(q) || it.bodyPreview.lowercase().contains(q)
@@ -95,7 +99,8 @@ class SearchViewModel
                                             id = it.id,
                                         )
                                     }
-                            } catch (_: Exception) {
+                            } catch (e: Exception) {
+                                Log.w("SearchViewModel", "Mail search failed", e)
                                 emptyList()
                             }
                         }

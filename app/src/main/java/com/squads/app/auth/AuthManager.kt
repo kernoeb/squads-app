@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.net.Uri
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -168,8 +169,9 @@ class AuthManager
                     if (refreshToken.isNotEmpty()) {
                         return refreshToken
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
                     // Not yet authorized — keep polling
+                    Log.d("AuthManager", "Device code poll: ${e.message}")
                 }
             }
             return null

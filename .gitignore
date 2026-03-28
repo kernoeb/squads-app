@@ -20,3 +20,6 @@ META-INF/
 .env
 *.hprof
 .gstack/
+/.desloppify
+/.claude
+scorecard.png

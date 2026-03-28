@@ -3,8 +3,8 @@ package com.squads.app.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
+import com.squads.app.data.CalendarApi
 import com.squads.app.data.CalendarEvent
-import com.squads.app.data.TeamsApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +15,7 @@ import javax.inject.Inject
 class CalendarViewModel
     @Inject
     constructor(
-        private val api: TeamsApiClient,
+        private val calendarApi: CalendarApi,
         private val authManager: AuthManager,
     ) : ViewModel() {
         private val _showWeek = MutableStateFlow(false)
@@ -63,7 +63,7 @@ class CalendarViewModel
                 _isLoading.value = true
                 _error.value = null
                 try {
-                    _events.value = api.getEvents(if (showWeekNow) 7 else 1)
+                    _events.value = calendarApi.getEvents(if (showWeekNow) 7 else 1)
                     lastLoadTime = System.currentTimeMillis()
                     lastLoadedForWeek = showWeekNow
                 } catch (e: Exception) {

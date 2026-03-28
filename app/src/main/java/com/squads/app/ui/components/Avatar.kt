@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
+import com.squads.app.data.PresenceAvailability
 
 private val avatarColors =
     listOf(
@@ -40,7 +41,7 @@ fun Avatar(
     size: Dp = 44.dp,
     isGroup: Boolean = false,
     photoUrl: String? = null,
-    presence: String? = null,
+    presence: PresenceAvailability? = null,
 ) {
     val shape = if (isGroup) MaterialTheme.shapes.medium else CircleShape
 

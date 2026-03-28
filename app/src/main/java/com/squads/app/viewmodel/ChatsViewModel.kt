@@ -1,13 +1,17 @@
 package com.squads.app.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
 import com.squads.app.data.ChatConversation
 import com.squads.app.data.ChatMessage
+import com.squads.app.data.EmojiManager
 import com.squads.app.data.NetworkMonitor
+import com.squads.app.data.PresenceAvailability
 import com.squads.app.data.TeamsApiClient
 import com.squads.app.data.TrouterClient
+import com.squads.app.data.escapeForTeamsHtml
 import com.squads.app.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -29,8 +33,14 @@ class ChatsViewModel
         private val networkMonitor: NetworkMonitor,
         private val trouterClient: TrouterClient,
         private val authManager: AuthManager,
+        private val emojiManager: EmojiManager,
     ) : ViewModel() {
         private val _chats = MutableStateFlow<List<ChatConversation>>(emptyList())
+
+        companion object {
+            private const val TAG = "ChatsViewModel"
+        }
+
         val chats: StateFlow<List<ChatConversation>> = _chats
 
         private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
@@ -39,8 +49,8 @@ class ChatsViewModel
         private val _selectedChat = MutableStateFlow<ChatConversation?>(null)
         val selectedChat: StateFlow<ChatConversation?> = _selectedChat
 
-        private val _presenceMap = MutableStateFlow<Map<String, String>>(emptyMap())
-        val presenceMap: StateFlow<Map<String, String>> = _presenceMap
+        private val _presenceMap = MutableStateFlow<Map<String, PresenceAvailability>>(emptyMap())
+        val presenceMap: StateFlow<Map<String, PresenceAvailability>> = _presenceMap
 
         private val _isLoading = MutableStateFlow(false)
         val isLoading: StateFlow<Boolean> = _isLoading
@@ -61,6 +71,7 @@ class ChatsViewModel
 
         init {
             api.invalidateCache()
+            viewModelScope.launch { emojiManager.init() }
             viewModelScope.launch { chatRepository.observeChats().collect { _chats.value = it } }
             refreshChats()
             startChatPolling()
@@ -119,7 +130,8 @@ class ChatsViewModel
                 try {
                     val me = api.getMe()
                     myDisplayName = me.displayName
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load user info", e)
                 }
             }
         }
@@ -171,7 +183,7 @@ class ChatsViewModel
 
         private fun onPresenceChanged(event: TrouterClient.Event.PresenceChanged) {
             val current = _presenceMap.value.toMutableMap()
-            current[event.userId] = event.availability
+            current[event.userId] = PresenceAvailability.fromString(event.availability)
             _presenceMap.value = current
         }
 
@@ -183,7 +195,8 @@ class ChatsViewModel
                     api.invalidateCache()
                     try {
                         chatRepository.refreshChats()
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Debounced chat refresh failed", e)
                     }
                 }
         }
@@ -201,7 +214,8 @@ class ChatsViewModel
                         try {
                             val fresh = chatRepository.refreshMessages(chatId)
                             _messages.value = mergeWithOptimistic(fresh)
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Trouter message refresh failed", e)
                         }
                     }
             }
@@ -216,7 +230,8 @@ class ChatsViewModel
                         if (!networkMonitor.isOnline.value) continue
                         try {
                             chatRepository.refreshChats()
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Chat polling refresh failed", e)
                         }
                     }
                 }
@@ -274,7 +289,8 @@ class ChatsViewModel
                             ) {
                                 _messages.value = merged
                             }
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Message polling refresh failed", e)
                         }
                     }
                 }
@@ -302,7 +318,8 @@ class ChatsViewModel
             if (memberIds.isNotEmpty()) {
                 try {
                     _presenceMap.value = api.getPresences(memberIds)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(TAG, "Presence fetch failed", e)
                 }
             }
         }
@@ -322,23 +339,13 @@ class ChatsViewModel
             val senderObjectId = api.myUserId.value ?: ""
             val senderDisplayName = myDisplayName ?: "You"
 
-            val escapedContent =
-                content
-                    .replace("&", "&amp;")
-                    .replace("<", "&lt;")
-                    .replace(">", "&gt;")
-                    .replace("\n", "<br>")
+            val escapedContent = content.escapeForTeamsHtml()
 
             val htmlContent =
                 if (replyTo != null) {
                     val replyName =
                         if (replyTo.isFromMe) senderDisplayName else replyTo.senderName
-                    val preview =
-                        replyTo.content
-                            .take(200)
-                            .replace("&", "&amp;")
-                            .replace("<", "&lt;")
-                            .replace(">", "&gt;")
+                    val preview = replyTo.content.take(200).escapeForTeamsHtml()
                     "<blockquote itemtype=\"http://schema.skype.com/Reply\">" +
                         "<strong>$replyName</strong>" +
                         "<div itemprop=\"preview\">$preview</div>" +
@@ -370,9 +377,9 @@ class ChatsViewModel
                 try {
                     chatRepository.insertLocalMessage(chatId, newMsg)
                     if (replyTo != null) {
-                        api.sendMessage(chatId, htmlContent, rawHtml = true)
+                        api.sendHtmlMessage(chatId, htmlContent)
                     } else {
-                        api.sendMessage(chatId, content)
+                        api.sendTextMessage(chatId, content)
                     }
                 } catch (e: Exception) {
                     _error.value = "Failed to send: ${e.message}"
