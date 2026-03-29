@@ -100,6 +100,7 @@ fun MailMessage.toEntity(): MailMessageEntity =
         isDraft = isDraft,
         hasAttachments = hasAttachments,
         importance = importance,
+        folderId = folderId,
     )
 
 fun MailMessageEntity.toDomain(): MailMessage =
@@ -116,6 +117,7 @@ fun MailMessageEntity.toDomain(): MailMessage =
         isDraft = isDraft,
         hasAttachments = hasAttachments,
         importance = importance,
+        folderId = folderId,
     )
 
 // ─── Helpers ────────────────────────────────────────────────

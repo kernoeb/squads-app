@@ -48,6 +48,21 @@ interface MailDao {
     @Query("SELECT * FROM mail ORDER BY receivedDateTimeEpoch DESC")
     fun observeMail(): Flow<List<MailMessageEntity>>
 
+    @Query("SELECT * FROM mail WHERE folderId = :folderId ORDER BY receivedDateTimeEpoch DESC")
+    fun observeMailByFolder(folderId: String): Flow<List<MailMessageEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMail(messages: List<MailMessageEntity>)
+
+    @Query("DELETE FROM mail WHERE folderId = :folderId")
+    suspend fun deleteMailByFolder(folderId: String)
+
+    @Transaction
+    suspend fun replaceMailInFolder(
+        folderId: String,
+        messages: List<MailMessageEntity>,
+    ) {
+        deleteMailByFolder(folderId)
+        insertMail(messages)
+    }
 }

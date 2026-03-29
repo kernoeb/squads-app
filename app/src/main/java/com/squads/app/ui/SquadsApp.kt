@@ -1,6 +1,7 @@
 package com.squads.app.ui
 
 import android.view.HapticFeedbackConstants
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -208,17 +209,19 @@ private fun MainApp(authViewModel: AuthViewModel) {
                     entry<MailDetail>(
                         metadata = parentMetadata(MAIL_CONTENT_KEY),
                     ) {
+                        val mailViewModel: MailViewModel = hiltViewModel()
+                        val goBack = {
+                            navigator.goBack()
+                            mailViewModel.clearSelection()
+                        }
+                        BackHandler(onBack = goBack)
                         Surface(modifier = Modifier.fillMaxSize()) {
-                            val mailViewModel: MailViewModel = hiltViewModel()
                             val selectedMail by mailViewModel.selectedMail.collectAsState()
                             val isDetailLoading by mailViewModel.isDetailLoading.collectAsState()
                             if (selectedMail != null) {
                                 MailDetailScreen(
                                     mail = selectedMail!!,
-                                    onBack = {
-                                        navigator.goBack()
-                                        mailViewModel.clearSelection()
-                                    },
+                                    onBack = goBack,
                                     isBodyLoading = isDetailLoading,
                                     tokenProvider = { url -> mailViewModel.getTokenForUrl(url) },
                                 )

@@ -48,4 +48,5 @@ data class MailMessageEntity(
     val isDraft: Boolean,
     val hasAttachments: Boolean,
     val importance: String,
+    val folderId: String = "",
 )

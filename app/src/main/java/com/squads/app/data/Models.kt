@@ -41,6 +41,12 @@ data class Reaction(
 
 // ─── Mail models ────────────────────────────────────────────────
 
+data class MailFolder(
+    val id: String,
+    val displayName: String,
+    val unreadItemCount: Int = 0,
+)
+
 data class MailMessage(
     val id: String,
     val subject: String,
@@ -54,6 +60,7 @@ data class MailMessage(
     val isDraft: Boolean = false,
     val hasAttachments: Boolean = false,
     val importance: String = "normal",
+    val folderId: String = "",
 )
 
 // ─── Calendar models ────────────────────────────────────────────

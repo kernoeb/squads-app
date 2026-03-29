@@ -1,7 +1,6 @@
 package com.squads.app.ui.mail
 
 import android.content.Intent
-import android.view.View
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -23,12 +22,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.squads.app.data.MailFolder
 import com.squads.app.data.MailMessage
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
@@ -64,13 +66,18 @@ fun MailScreen(
     onMailClick: () -> Unit = {},
 ) {
     val messages by viewModel.messages.collectAsState()
+    val folders by viewModel.folders.collectAsState()
+    val currentFolderId by viewModel.currentFolderId.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
-    if (isLoading && messages.isEmpty()) {
+    if (isLoading && messages.isEmpty() && folders.isEmpty()) {
         LoadingScreen()
     } else {
         MailListScreen(
             messages = messages,
+            folders = folders,
+            currentFolderId = currentFolderId,
+            onFolderClick = { viewModel.switchFolder(it) },
             onMailClick = { mail ->
                 viewModel.selectMail(mail)
                 onMailClick()
@@ -82,6 +89,9 @@ fun MailScreen(
 @Composable
 private fun MailListScreen(
     messages: List<MailMessage>,
+    folders: List<MailFolder>,
+    currentFolderId: String?,
+    onFolderClick: (String) -> Unit,
     onMailClick: (MailMessage) -> Unit,
 ) {
     val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -91,6 +101,23 @@ private fun MailListScreen(
         contentPadding = PaddingValues(bottom = BottomNavHeight + systemNavInset),
     ) {
         item { ScreenHeader("Mail") }
+        if (folders.size > 1) {
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(folders, key = { it.id }) { folder ->
+                        FilterChip(
+                            selected = folder.id == currentFolderId,
+                            onClick = { onFolderClick(folder.id) },
+                            label = { Text(folder.displayName) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+        }
         items(messages, key = { it.id }, contentType = { "mail" }) { mail ->
             MailRow(mail = mail, onClick = { onMailClick(mail) })
             HorizontalDivider(
@@ -282,8 +309,18 @@ private fun MailBodyWebView(
     val linkHex = remember(linkColor) { String.format("#%06X", linkColor.toArgb() and 0xFFFFFF) }
     val bgArgb = remember(bgColor) { bgColor.toArgb() }
 
+    // Strip outer <html>/<head>/<body> tags so our wrapper CSS applies cleanly
+    val bodyContent =
+        remember(html) {
+            BODY_TAG_REGEX
+                .find(html)
+                ?.groupValues
+                ?.get(1)
+                ?.trim() ?: html
+        }
+
     val styledHtml =
-        remember(html, textHex, bgHex, linkHex) {
+        remember(bodyContent, textHex, bgHex, linkHex) {
             """
             <html><head>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -295,19 +332,25 @@ private fun MailBodyWebView(
                 table { max-width: 100%; overflow-x: auto; }
                 pre, code { white-space: pre-wrap; max-width: 100%; }
             </style>
-            </head><body>$html</body></html>
+            </head><body>$bodyContent</body></html>
             """.trimIndent()
         }
 
     AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
-                setLayerType(View.LAYER_TYPE_SOFTWARE, null)
                 setBackgroundColor(bgArgb)
                 settings.loadWithOverviewMode = true
                 settings.useWideViewPort = true
                 webViewClient =
                     object : WebViewClient() {
+                        override fun onPageFinished(
+                            view: WebView?,
+                            url: String?,
+                        ) {
+                            view?.clearHistory()
+                        }
+
                         override fun shouldOverrideUrlLoading(
                             view: WebView?,
                             request: WebResourceRequest?,
@@ -368,3 +411,5 @@ private fun MailBodyWebView(
         modifier = modifier,
     )
 }
+
+private val BODY_TAG_REGEX = Regex("""<body[^>]*>([\s\S]*)</body>""", RegexOption.IGNORE_CASE)

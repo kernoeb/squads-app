@@ -5,16 +5,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.squads.app.auth.AuthManager
 import com.squads.app.data.MailApi
+import com.squads.app.data.MailFolder
 import com.squads.app.data.MailMessage
 import com.squads.app.data.repository.MailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class MailViewModel
     @Inject
@@ -23,10 +29,21 @@ class MailViewModel
         private val mailRepository: MailRepository,
         private val authManager: AuthManager,
     ) : ViewModel() {
+        private val _folders = MutableStateFlow<List<MailFolder>>(emptyList())
+        val folders: StateFlow<List<MailFolder>> = _folders
+
+        private val _currentFolderId = MutableStateFlow<String?>(null)
+        val currentFolderId: StateFlow<String?> = _currentFolderId
+
         val messages: StateFlow<List<MailMessage>> =
-            mailRepository
-                .observeMail()
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+            _currentFolderId
+                .flatMapLatest { folderId ->
+                    if (folderId != null) {
+                        mailRepository.observeMailByFolder(folderId)
+                    } else {
+                        flowOf(emptyList())
+                    }
+                }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
         private val _selectedMail = MutableStateFlow<MailMessage?>(null)
         val selectedMail: StateFlow<MailMessage?> = _selectedMail
@@ -43,14 +60,42 @@ class MailViewModel
         private var lastLoadTime = 0L
 
         init {
-            refreshMail()
+            loadFolders()
             viewModelScope.launch {
                 authManager.onSessionStart().collect {
                     lastLoadTime = 0L
                     _selectedMail.value = null
+                    _currentFolderId.value = null
+                    _folders.value = emptyList()
+                    loadFolders()
+                }
+            }
+        }
+
+        private fun loadFolders() {
+            viewModelScope.launch {
+                try {
+                    val foldersDeferred = async { mailRepository.getMailFolders() }
+                    val inboxIdDeferred = async { mailRepository.getInboxFolderId() }
+                    val folders = foldersDeferred.await()
+                    val inboxId = inboxIdDeferred.await()
+                    _folders.value = folders
+                    if (_currentFolderId.value == null && folders.isNotEmpty()) {
+                        _currentFolderId.value = inboxId ?: folders.first().id
+                    }
+                } catch (e: Exception) {
+                    Log.w("MailViewModel", "Failed to load folders", e)
+                } finally {
                     refreshMail(forceRefresh = true)
                 }
             }
+        }
+
+        fun switchFolder(folderId: String) {
+            if (_currentFolderId.value == folderId) return
+            _currentFolderId.value = folderId
+            lastLoadTime = 0L
+            refreshMail(forceRefresh = true)
         }
 
         fun refreshMail(forceRefresh: Boolean = false) {
@@ -61,7 +106,7 @@ class MailViewModel
                 _isLoading.value = true
                 _error.value = null
                 try {
-                    mailRepository.refreshMail()
+                    mailRepository.refreshMail(folderId = _currentFolderId.value)
                     lastLoadTime = System.currentTimeMillis()
                 } catch (e: Exception) {
                     _error.value = e.message

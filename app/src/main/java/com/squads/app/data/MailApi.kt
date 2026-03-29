@@ -11,11 +11,33 @@ class MailApi
     constructor(
         private val api: TeamsApiClient,
     ) {
-        suspend fun getMail(limit: Int = 25): List<MailMessage> {
-            if (api.isDemoMode) return api.mockRepository.getMail()
-            val url = "https://graph.microsoft.com/v1.0/me/messages?\$top=$limit&\$orderby=receivedDateTime desc"
+        suspend fun getMailFolders(): List<MailFolder> {
+            if (api.isDemoMode) return api.mockRepository.getMailFolders()
+            val url = "https://graph.microsoft.com/v1.0/me/mailFolders?\$top=25"
             val arr = JSONObject(api.graphGet(url)).optJSONArray("value") ?: return emptyList()
-            return arr.objects().map(::parseMailMessage)
+            return arr.objects().map { f ->
+                MailFolder(
+                    id = f.optString("id"),
+                    displayName = f.optString("displayName"),
+                    unreadItemCount = f.optInt("unreadItemCount", 0),
+                )
+            }
+        }
+
+        suspend fun getMail(
+            limit: Int = 25,
+            folderId: String? = null,
+        ): List<MailMessage> {
+            if (api.isDemoMode) return api.mockRepository.getMail(folderId)
+            val base =
+                if (folderId != null) {
+                    "https://graph.microsoft.com/v1.0/me/mailFolders/$folderId/messages"
+                } else {
+                    "https://graph.microsoft.com/v1.0/me/messages"
+                }
+            val url = "$base?\$top=$limit&\$orderby=receivedDateTime desc"
+            val arr = JSONObject(api.graphGet(url)).optJSONArray("value") ?: return emptyList()
+            return arr.objects().map { parseMailMessage(it, folderId ?: "") }
         }
 
         suspend fun getMailDetail(messageId: String): MailMessage {
@@ -39,9 +61,22 @@ class MailApi
             return mail.copy(body = body)
         }
 
+        suspend fun getInboxFolderId(): String? {
+            if (api.isDemoMode) return "inbox"
+            return try {
+                val json = JSONObject(api.graphGet("https://graph.microsoft.com/v1.0/me/mailFolders/inbox?\$select=id"))
+                json.optString("id").ifEmpty { null }
+            } catch (_: Exception) {
+                null
+            }
+        }
+
         suspend fun getTokenForUrl(url: String): String? = api.getTokenForUrl(url)
 
-        private fun parseMailMessage(m: JSONObject): MailMessage {
+        private fun parseMailMessage(
+            m: JSONObject,
+            folderId: String = "",
+        ): MailMessage {
             val from = m.optJSONObject("from")?.optJSONObject("emailAddress")
             val toList =
                 (m.optJSONArray("toRecipients") ?: JSONArray())
@@ -61,6 +96,7 @@ class MailApi
                 isDraft = m.optBoolean("isDraft", false),
                 hasAttachments = m.optBoolean("hasAttachments", false),
                 importance = m.optString("importance", "normal"),
+                folderId = m.optString("parentFolderId", folderId),
             )
         }
 

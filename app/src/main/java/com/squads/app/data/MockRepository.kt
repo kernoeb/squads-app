@@ -171,7 +171,16 @@ class MockRepository
 
         // ─── Mail ───────────────────────────────────────────────────
 
-        fun getMail(): List<MailMessage> =
+        fun getMailFolders(): List<MailFolder> =
+            listOf(
+                MailFolder("inbox", "Inbox", unreadItemCount = 2),
+                MailFolder("sentitems", "Sent Items"),
+                MailFolder("drafts", "Drafts"),
+                MailFolder("deleteditems", "Deleted Items"),
+                MailFolder("junkemail", "Junk Email"),
+            )
+
+        private val allMail: List<MailMessage> =
             listOf(
                 MailMessage(
                     "e1",
@@ -184,6 +193,7 @@ class MockRepository
                     isRead = false,
                     hasAttachments = true,
                     importance = "high",
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e2",
@@ -193,6 +203,7 @@ class MockRepository
                     "James Architect",
                     "james@contoso.com",
                     receivedDateTime = now.minusHours(3),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e3",
@@ -202,6 +213,7 @@ class MockRepository
                     "Rachel Social",
                     "rachel@contoso.com",
                     receivedDateTime = now.minusHours(6),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e4",
@@ -211,6 +223,7 @@ class MockRepository
                     "DevOps Bot",
                     "devops@contoso.com",
                     receivedDateTime = now.minusDays(1),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e5",
@@ -220,6 +233,7 @@ class MockRepository
                     "Facilities",
                     "facilities@contoso.com",
                     receivedDateTime = now.minusDays(1),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e6",
@@ -229,6 +243,7 @@ class MockRepository
                     "Finance System",
                     "finance@contoso.com",
                     receivedDateTime = now.minusDays(2),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e7",
@@ -238,6 +253,7 @@ class MockRepository
                     "Calendar",
                     "noreply@contoso.com",
                     receivedDateTime = now.minusDays(2),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e8",
@@ -247,6 +263,7 @@ class MockRepository
                     "Product Team",
                     "product@contoso.com",
                     receivedDateTime = now.minusDays(3),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e9",
@@ -256,6 +273,7 @@ class MockRepository
                     "IT Security",
                     "security@contoso.com",
                     receivedDateTime = now.minusDays(4),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e10",
@@ -266,6 +284,7 @@ class MockRepository
                     "dba@contoso.com",
                     receivedDateTime = now.minusDays(4),
                     hasAttachments = true,
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e11",
@@ -275,6 +294,7 @@ class MockRepository
                     "HR Team",
                     "hr@contoso.com",
                     receivedDateTime = now.minusDays(5),
+                    folderId = "inbox",
                 ),
                 MailMessage(
                     "e12",
@@ -284,11 +304,63 @@ class MockRepository
                     "Engineering Lead",
                     "eng-lead@contoso.com",
                     receivedDateTime = now.minusDays(6),
+                    folderId = "inbox",
+                ),
+                // Sent items
+                MailMessage(
+                    "e13",
+                    "Re: Q1 Review — Action items",
+                    "Thanks Patricia, I'll update the tracker by end of day.",
+                    "",
+                    "You",
+                    "you@contoso.com",
+                    receivedDateTime = now.minusMinutes(30),
+                    folderId = "sentitems",
+                ),
+                MailMessage(
+                    "e14",
+                    "Design review feedback",
+                    "Hey Sarah, here's my feedback on the new mockups. Overall looks great!",
+                    "",
+                    "You",
+                    "you@contoso.com",
+                    receivedDateTime = now.minusDays(2),
+                    folderId = "sentitems",
+                ),
+                // Drafts
+                MailMessage(
+                    "e15",
+                    "Proposal: New CI/CD pipeline",
+                    "I've been looking into replacing our current pipeline with...",
+                    "",
+                    "You",
+                    "you@contoso.com",
+                    receivedDateTime = now.minusHours(2),
+                    isDraft = true,
+                    folderId = "drafts",
+                ),
+                // Junk
+                MailMessage(
+                    "e16",
+                    "You've won a free cruise!",
+                    "Congratulations! You've been selected for an exclusive offer...",
+                    "",
+                    "Promo Deals",
+                    "noreply@totallylegit.com",
+                    receivedDateTime = now.minusDays(1),
+                    folderId = "junkemail",
                 ),
             )
 
+        fun getMail(folderId: String? = null): List<MailMessage> =
+            if (folderId != null) {
+                allMail.filter { it.folderId == folderId }
+            } else {
+                allMail
+            }
+
         fun getMailDetail(messageId: String): MailMessage {
-            val mail = getMail().first { it.id == messageId }
+            val mail = allMail.first { it.id == messageId }
             val body = MAIL_BODIES[messageId] ?: defaultMailBody(mail)
             return mail.copy(body = body)
         }
@@ -606,7 +678,7 @@ class MockRepository
                 .filter { it.title.lowercase().contains(q) || it.lastMessage.lowercase().contains(q) }
                 .forEach { results.add(SearchResult(SearchResultType.CHAT, it.title, it.lastMessage, it.lastMessage, it.id)) }
 
-            getMail()
+            allMail
                 .filter { it.subject.lowercase().contains(q) || it.bodyPreview.lowercase().contains(q) }
                 .forEach { results.add(SearchResult(SearchResultType.MAIL, it.subject, it.fromName, it.bodyPreview, it.id)) }
 
