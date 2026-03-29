@@ -45,7 +45,33 @@ class EmojiManager
             }
         }
 
-        fun getEmoji(key: String): String = mapping[key.lowercase()] ?: key
+        fun getEmoji(key: String): String {
+            val lower = key.lowercase()
+            mapping[lower]?.let { return it }
+            // Handle skin tone variants: "yes-tone1" → base "yes" + modifier
+            val toneMatch = TONE_REGEX.matchEntire(lower)
+            if (toneMatch != null) {
+                val base = toneMatch.groupValues[1]
+                val tone = toneMatch.groupValues[2].toIntOrNull()
+                val baseEmoji = mapping[base]
+                if (baseEmoji != null && tone != null && tone in 1..5) {
+                    return baseEmoji + SKIN_TONE_MODIFIERS[tone - 1]
+                }
+            }
+            return key
+        }
+
+        companion object {
+            private val TONE_REGEX = Regex("^(.+)-tone(\\d)$")
+            private val SKIN_TONE_MODIFIERS =
+                listOf(
+                    "\uD83C\uDFFB", // tone1 - light
+                    "\uD83C\uDFFC", // tone2 - medium-light
+                    "\uD83C\uDFFD", // tone3 - medium
+                    "\uD83C\uDFFE", // tone4 - medium-dark
+                    "\uD83C\uDFFF", // tone5 - dark
+                )
+        }
 
         private fun loadFromCache(): Boolean {
             val file = cacheFile()

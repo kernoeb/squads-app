@@ -60,7 +60,8 @@ fun ChatMessage.toEntity(chatId: String): ChatMessageEntity =
                             org.json
                                 .JSONObject()
                                 .put("emoji", r.emoji)
-                                .put("count", r.count),
+                                .put("count", r.count)
+                                .apply { if (r.imageUrl != null) put("imageUrl", r.imageUrl) },
                         )
                     }
                 }.toString(),
@@ -136,7 +137,11 @@ private fun parseReactionsJson(json: String): List<Reaction> =
         val arr = JSONArray(json)
         (0 until arr.length()).map { i ->
             val obj = arr.getJSONObject(i)
-            Reaction(emoji = obj.getString("emoji"), count = obj.getInt("count"))
+            Reaction(
+                emoji = obj.getString("emoji"),
+                count = obj.getInt("count"),
+                imageUrl = if (obj.has("imageUrl")) obj.getString("imageUrl") else null,
+            )
         }
     } catch (_: Exception) {
         emptyList()

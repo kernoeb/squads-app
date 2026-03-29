@@ -37,6 +37,7 @@ data class ChatMessage(
 data class Reaction(
     val emoji: String,
     val count: Int,
+    val imageUrl: String? = null,
 )
 
 // ─── Mail models ────────────────────────────────────────────────

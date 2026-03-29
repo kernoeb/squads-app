@@ -377,7 +377,7 @@ fun MessageRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     msg.reactions.forEach { reaction ->
-                        ReactionChip(reaction.emoji, reaction.count)
+                        ReactionChip(reaction.emoji, reaction.count, imageUrl = reaction.imageUrl)
                     }
                 }
             }

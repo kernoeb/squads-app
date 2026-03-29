@@ -108,6 +108,7 @@ class TeamsApiClient
             val accessToken = json.getString("access_token")
             val expiresIn = json.optLong("expires_in", 3600)
             tokenCache[scope] = accessToken to (System.currentTimeMillis() / 1000 + expiresIn)
+            ensureTenantId(accessToken)
             return accessToken
         }
 
@@ -427,6 +428,7 @@ class TeamsApiClient
             userNameCache.clear()
             botIconCache.clear()
             resolvedBotGroups.clear()
+            cachedTenantId = null
             _myUserId.value = null
             invalidateCache()
         }
@@ -831,7 +833,32 @@ class TeamsApiClient
             if (emotions == null) return emptyList()
             return emotions.objects().map { e ->
                 val key = e.optString("key", "")
-                Reaction(emoji = emojiManager.getEmoji(key), count = e.optJSONArray("users")?.length() ?: 0)
+                val count = e.optJSONArray("users")?.length() ?: 0
+                val semiIdx = key.indexOf(';')
+                if (semiIdx > 0) {
+                    val name = key.substring(0, semiIdx)
+                    val objectId = key.substring(semiIdx + 1)
+                    val imageUrl =
+                        cachedTenantId?.let { tid ->
+                            "https://eu-prod.asyncgw.teams.microsoft.com/v1/$tid/objects/$objectId/views/imgt2_anim"
+                        }
+                    Reaction(emoji = name, count = count, imageUrl = imageUrl)
+                } else {
+                    Reaction(emoji = emojiManager.getEmoji(key), count = count)
+                }
+            }
+        }
+
+        @Volatile private var cachedTenantId: String? = null
+
+        private fun ensureTenantId(token: String) {
+            if (cachedTenantId != null) return
+            val parts = token.split(".")
+            if (parts.size != 3) return
+            try {
+                val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING))
+                cachedTenantId = JSONObject(payload).optString("tid", null)
+            } catch (_: Exception) {
             }
         }
     }

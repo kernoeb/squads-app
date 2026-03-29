@@ -2,8 +2,11 @@ package com.squads.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -12,10 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import com.squads.app.data.MailImportance
 import com.squads.app.data.PresenceAvailability
 
@@ -76,6 +83,7 @@ fun ReactionChip(
     emoji: String,
     count: Int,
     modifier: Modifier = Modifier,
+    imageUrl: String? = null,
 ) {
     Box(
         modifier =
@@ -85,11 +93,35 @@ fun ReactionChip(
                 .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = if (count > 1) "$emoji $count" else emoji,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
-        )
+        if (imageUrl != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SubcomposeAsyncImage(
+                    model =
+                        ImageRequest
+                            .Builder(LocalContext.current)
+                            .data(imageUrl)
+                            .size(Size(54, 54))
+                            .build(),
+                    contentDescription = emoji,
+                    modifier = Modifier.size(18.dp),
+                    error = { Text(emoji, fontSize = 13.sp) },
+                )
+                if (count > 1) {
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "$count",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        } else {
+            Text(
+                text = if (count > 1) "$emoji $count" else emoji,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
     }
 }
 

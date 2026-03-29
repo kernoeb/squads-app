@@ -244,7 +244,7 @@ private fun ChannelMessagesView(messages: List<ChannelMessage>) {
                     if (msg.reactions.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            msg.reactions.forEach { r -> ReactionChip(r.emoji, r.count) }
+                            msg.reactions.forEach { r -> ReactionChip(r.emoji, r.count, imageUrl = r.imageUrl) }
                         }
                     }
 
@@ -325,7 +325,7 @@ private fun ReplyRow(reply: ChannelMessage) {
             if (reply.reactions.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    reply.reactions.forEach { r -> ReactionChip(r.emoji, r.count) }
+                    reply.reactions.forEach { r -> ReactionChip(r.emoji, r.count, imageUrl = r.imageUrl) }
                 }
             }
         }

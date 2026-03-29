@@ -21,7 +21,7 @@ just ship 0.3.0   # bump version, tag, and push
 
 Gradle directly: `./gradlew assembleDebug`, `./gradlew installDebug`, `./gradlew ktlintCheck`.
 
-**Build variants**: Debug builds use `applicationIdSuffix = ".dev"` (`com.squads.app.dev`) so dev and production versions can coexist on the same device. Debug shows as "Squads Dev" in the launcher. Auth tokens are isolated per variant (separate SharedPreferences). Maestro flows and justfile commands target the `.dev` package.
+**Build variants**: Debug builds use `applicationIdSuffix = ".dev"` (`com.squads.app.dev`) so dev and production versions can coexist on the same device. Debug shows as "Squads Dev" in the launcher. Auth tokens are isolated per variant (separate SharedPreferences). Maestro flows and justfile commands target the `.dev` package. When launching via adb, the activity class keeps the original package: `adb shell am start -n com.squads.app.dev/com.squads.app.MainActivity` (not `com.squads.app.dev.MainActivity`).
 
 Maestro binary: `~/.maestro/bin/maestro` (not in PATH). Run individual flows with `~/.maestro/bin/maestro test .maestro/<flow>.yaml`.
 
