@@ -96,6 +96,7 @@ data class ChannelMessage(
     val id: String,
     val content: String,
     val senderName: String,
+    val senderObjectId: String = "",
     val timestamp: LocalDateTime,
     val replyCount: Int = 0,
     val reactions: List<Reaction> = emptyList(),
@@ -164,7 +165,13 @@ fun LocalDateTime.toTimeString(): String = format(DateTimeFormatter.ofPattern("H
 
 fun LocalDateTime.toDateTimeString(): String = format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
 
-fun graphProfilePhotoUrl(userId: String): String = "https://graph.microsoft.com/v1.0/users/$userId/photo/\$value"
+fun graphProfilePhotoUrl(userId: String): String? =
+    userId.takeIf { it.isNotEmpty() }?.let { "https://graph.microsoft.com/v1.0/users/$it/photo/\$value" }
+
+fun graphGroupPhotoUrl(groupId: String): String? =
+    groupId.takeIf { it.isNotEmpty() }?.let { "https://graph.microsoft.com/v1.0/groups/$it/photo/\$value" }
+
+fun String.mriToObjectId(): String = removePrefix("8:orgid:").removePrefix("8:lync:")
 
 fun LocalDateTime.toEpochMillis(): Long =
     try {

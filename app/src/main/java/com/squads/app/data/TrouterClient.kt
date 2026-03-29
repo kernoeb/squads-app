@@ -411,7 +411,7 @@ class TrouterClient
                 for (i in 0 until presenceArr.length()) {
                     val item = presenceArr.getJSONObject(i)
                     val mri = item.optString("mri", "")
-                    val userId = mri.removePrefix("8:orgid:")
+                    val userId = mri.mriToObjectId()
                     val presence = item.optJSONObject("presence") ?: continue
                     val availability = presence.optString("availability", "")
                     if (userId.isNotEmpty() && availability.isNotEmpty()) {

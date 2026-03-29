@@ -1,5 +1,6 @@
 package com.squads.app.ui.teams
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -45,6 +46,8 @@ import com.squads.app.data.Channel
 import com.squads.app.data.ChannelMessage
 import com.squads.app.data.Team
 import com.squads.app.data.toRelativeTime
+import com.squads.app.data.graphGroupPhotoUrl
+import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip
@@ -64,6 +67,10 @@ fun TeamsScreen(viewModel: TeamsViewModel = hiltViewModel()) {
     if (isLoading && teams.isEmpty() && selectedTeam == null) {
         LoadingScreen()
         return
+    }
+
+    BackHandler(enabled = selectedTeam != null) {
+        viewModel.goBack()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -130,7 +137,7 @@ private fun TeamsListView(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Avatar(name = team.displayName, size = 48.dp, isGroup = true)
+                    Avatar(name = team.displayName, size = 48.dp, isGroup = true, photoUrl = graphGroupPhotoUrl(team.id))
                     Spacer(Modifier.width(14.dp))
                     Column {
                         Text(
@@ -199,7 +206,11 @@ private fun ChannelMessagesView(messages: List<ChannelMessage>) {
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Avatar(name = msg.senderName, size = 32.dp)
+                        Avatar(
+                            name = msg.senderName,
+                            size = 32.dp,
+                            photoUrl = graphProfilePhotoUrl(msg.senderObjectId),
+                        )
                         Spacer(Modifier.width(10.dp))
                         Text(msg.senderName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.width(8.dp))

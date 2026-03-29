@@ -130,6 +130,9 @@ class ChatsViewModel
                 try {
                     val me = api.getMe()
                     myDisplayName = me.displayName
+                    if (authManager.userName.value != me.displayName) {
+                        authManager.updateUserName(me.displayName)
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to load user info", e)
                 }

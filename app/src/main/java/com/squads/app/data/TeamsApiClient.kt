@@ -224,7 +224,7 @@ class TeamsApiClient
                     )
                 val result = mutableMapOf<String, PresenceAvailability>()
                 for (item in JSONArray(raw).objects()) {
-                    val userId = item.str("mri").removePrefix("8:orgid:")
+                    val userId = item.str("mri").mriToObjectId()
                     val presence = item.optJSONObject("presence")
                     if (presence != null) {
                         result[userId] = PresenceAvailability.fromString(presence.str("availability", "Offline"))
@@ -596,7 +596,7 @@ class TeamsApiClient
                     if (parsed.text.isBlank() && parsed.imageUrls.isEmpty()) return@mapNotNull null
 
                     val senderMri = stripSenderUrl(m.str("from"))
-                    val senderObjId = senderMri.removePrefix("8:orgid:").removePrefix("8:lync:")
+                    val senderObjId = senderMri.mriToObjectId()
 
                     ChatMessage(
                         id = m.optString("id", ""),
@@ -639,11 +639,13 @@ class TeamsApiClient
                     if (content.isBlank()) return@firstNotNullOfOrNull null
                     val sender = m.str("imdisplayname").ifEmpty { m.str("imDisplayName", "") }
                     if (sender.isEmpty()) return@firstNotNullOfOrNull null
+                    val senderObjId = stripSenderUrl(m.str("from")).mriToObjectId()
 
                     ChannelMessage(
                         id = m.optString("id", ""),
                         content = content,
                         senderName = sender,
+                        senderObjectId = senderObjId,
                         timestamp = parseTimestamp(m.str("composeTime").ifEmpty { m.str("composetime") }),
                         reactions = parseReactions(m.optJSONObject("properties")?.optJSONArray("emotions")),
                         replyCount = replyCount,

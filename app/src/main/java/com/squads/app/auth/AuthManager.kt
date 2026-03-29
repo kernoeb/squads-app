@@ -217,6 +217,11 @@ class AuthManager
             _deviceCodeState.value = DeviceCodeState.Idle
         }
 
+        fun updateUserName(name: String) {
+            prefs.edit().putString("user_name", name).apply()
+            _userName.value = name
+        }
+
         fun logout() {
             prefs.edit().clear().apply()
             _isAuthenticated.value = false
