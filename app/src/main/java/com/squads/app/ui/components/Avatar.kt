@@ -40,14 +40,15 @@ fun Avatar(
     modifier: Modifier = Modifier,
     size: Dp = 44.dp,
     isGroup: Boolean = false,
+    isBot: Boolean = false,
     photoUrl: String? = null,
     presence: PresenceAvailability? = null,
 ) {
-    val shape = if (isGroup) MaterialTheme.shapes.medium else CircleShape
+    val shape = if (isGroup || isBot) MaterialTheme.shapes.medium else CircleShape
 
     if (presence != null) {
         Box(modifier = modifier) {
-            AvatarContent(photoUrl, name, size, shape)
+            AvatarContent(photoUrl, name, size, shape, isBot = isBot)
             PresenceBadge(
                 availability = presence,
                 modifier = Modifier.align(Alignment.BottomEnd),
@@ -55,7 +56,7 @@ fun Avatar(
             )
         }
     } else {
-        AvatarContent(photoUrl, name, size, shape, modifier)
+        AvatarContent(photoUrl, name, size, shape, modifier, isBot = isBot)
     }
 }
 
@@ -66,16 +67,25 @@ private fun AvatarContent(
     size: Dp,
     shape: androidx.compose.ui.graphics.Shape,
     modifier: Modifier = Modifier,
+    isBot: Boolean = false,
 ) {
     if (photoUrl != null) {
+        val bgModifier =
+            if (isBot) {
+                modifier
+                    .size(size)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
+                    .clip(shape)
+            } else {
+                modifier
+                    .size(size)
+                    .clip(shape)
+            }
         SubcomposeAsyncImage(
             model = photoUrl,
             contentDescription = name,
-            contentScale = ContentScale.Crop,
-            modifier =
-                modifier
-                    .size(size)
-                    .clip(shape),
+            contentScale = if (isBot) ContentScale.Inside else ContentScale.Crop,
+            modifier = bgModifier,
             loading = { InitialsAvatar(name, size, shape) },
             error = { InitialsAvatar(name, size, shape) },
         )

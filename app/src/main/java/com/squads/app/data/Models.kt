@@ -102,6 +102,7 @@ data class EventAttendee(
 data class Team(
     val id: String,
     val displayName: String,
+    val groupId: String = "",
     val channels: List<Channel> = emptyList(),
 )
 
@@ -116,12 +117,17 @@ data class ChannelMessage(
     val subject: String = "",
     val senderName: String,
     val senderObjectId: String = "",
+    val senderPhotoUrl: String? = null,
     val timestamp: LocalDateTime,
     val reactions: List<Reaction> = emptyList(),
     val replies: List<ChannelMessage> = emptyList(),
 ) {
     val replyCount: Int get() = replies.size
+    val isBot: Boolean get() = senderObjectId.startsWith(BOT_MRI_PREFIX)
+    val botAppId: String get() = senderObjectId.removePrefix(BOT_MRI_PREFIX)
 }
+
+private const val BOT_MRI_PREFIX = "28:"
 
 // ─── User models ────────────────────────────────────────────────
 
@@ -187,7 +193,9 @@ fun LocalDateTime.toTimeString(): String = format(DateTimeFormatter.ofPattern("H
 fun LocalDateTime.toDateTimeString(): String = format(DateTimeFormatter.ofPattern("MMM d, HH:mm"))
 
 fun graphProfilePhotoUrl(userId: String): String? =
-    userId.takeIf { it.isNotEmpty() }?.let { "https://graph.microsoft.com/v1.0/users/$it/photo/\$value" }
+    userId
+        .takeIf { it.isNotEmpty() && !it.startsWith(BOT_MRI_PREFIX) }
+        ?.let { "https://graph.microsoft.com/v1.0/users/$it/photo/\$value" }
 
 fun graphGroupPhotoUrl(groupId: String): String? =
     groupId.takeIf { it.isNotEmpty() }?.let { "https://graph.microsoft.com/v1.0/groups/$it/photo/\$value" }

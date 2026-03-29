@@ -59,6 +59,8 @@ class TeamsApiClient
 
         private var cachedUserDetails: Pair<List<ChatConversation>, List<Team>>? = null
         private var cacheTimestamp = 0L
+        private val botIconCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+        private val resolvedBotGroups = mutableSetOf<String>()
 
         // ─── Token management ────────────────────────────────────────
 
@@ -423,6 +425,8 @@ class TeamsApiClient
             active = false
             tokenCache.clear()
             userNameCache.clear()
+            botIconCache.clear()
+            resolvedBotGroups.clear()
             _myUserId.value = null
             invalidateCache()
         }
@@ -631,22 +635,76 @@ class TeamsApiClient
             val json = JSONObject(authenticatedGet(url, SCOPE_CHATSVCAGG))
             val chains = json.optJSONArray("replyChains") ?: return emptyList()
 
-            return chains.objects().mapNotNull { chain ->
-                val msgs = chain.optJSONArray("messages") ?: return@mapNotNull null
-                val allMessages = msgs.objects()
-                val root =
-                    parseChannelMessage(allMessages.firstOrNull() ?: return@mapNotNull null)
-                        ?: return@mapNotNull null
+            val messages =
+                chains.objects().mapNotNull { chain ->
+                    val msgs = chain.optJSONArray("messages") ?: return@mapNotNull null
+                    val allMessages = msgs.objects().sortedBy { it.optString("id", "0").toLongOrNull() ?: 0L }
+                    val root =
+                        parseChannelMessage(allMessages.firstOrNull() ?: return@mapNotNull null)
+                            ?: return@mapNotNull null
 
-                val props = allMessages.first().optJSONObject("properties")
-                val subject =
-                    if (props == null || props.isNull("subject")) "" else props.optString("subject", "")
+                    val props = allMessages.first().optJSONObject("properties")
+                    val subject =
+                        if (props == null || props.isNull("subject")) "" else props.optString("subject", "")
 
-                val replies = allMessages.drop(1).mapNotNull { parseChannelMessage(it) }
+                    val replies = allMessages.drop(1).mapNotNull { parseChannelMessage(it) }
 
-                root.copy(subject = subject, replies = replies)
-            }
+                    root.copy(subject = subject, replies = replies)
+                }
+
+            return messages
         }
+
+        suspend fun resolveAndApplyBotIcons(
+            messages: List<ChannelMessage>,
+            groupId: String,
+        ): List<ChannelMessage> {
+            if (groupId.isEmpty() || resolvedBotGroups.contains(groupId)) return messages.withBotIcons()
+            val botIds =
+                buildSet {
+                    for (msg in messages) {
+                        if (msg.isBot) add(msg.botAppId)
+                        for (r in msg.replies) if (r.isBot) add(r.botAppId)
+                    }
+                }
+            if (botIds.isEmpty()) return messages
+            if (botIds.all { botIconCache.containsKey(it) }) return messages.withBotIcons()
+            try {
+                val response =
+                    graphGet(
+                        "https://graph.microsoft.com/beta/teams/$groupId/installedApps?\$expand=teamsAppDefinition(\$expand=bot,colorIcon)",
+                    )
+                val apps = JSONObject(response).optJSONArray("value") ?: return messages
+                apps.objects().forEach { app ->
+                    val def = app.optJSONObject("teamsAppDefinition") ?: return@forEach
+                    val botId = def.optJSONObject("bot")?.optString("id", "") ?: ""
+                    if (botId.isEmpty()) return@forEach
+                    val webUrl = def.optJSONObject("colorIcon")?.optString("webUrl", "") ?: ""
+                    if (webUrl.isNotEmpty()) {
+                        botIconCache[botId] = webUrl
+                    }
+                }
+                resolvedBotGroups.add(groupId)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to resolve bot icons", e)
+            }
+            return messages.withBotIcons()
+        }
+
+        private fun List<ChannelMessage>.withBotIcons(): List<ChannelMessage> =
+            map { msg ->
+                if (!msg.isBot && msg.replies.none { it.isBot }) {
+                    msg
+                } else {
+                    msg.copy(
+                        senderPhotoUrl = if (msg.isBot) botIconCache[msg.botAppId] else null,
+                        replies =
+                            msg.replies.map { r ->
+                                if (r.isBot) r.copy(senderPhotoUrl = botIconCache[r.botAppId]) else r
+                            },
+                    )
+                }
+            }
 
         private fun parseChannelMessage(m: JSONObject): ChannelMessage? {
             val content = HtmlParser.parseMessage(m.str("content")).text
@@ -668,6 +726,7 @@ class TeamsApiClient
                 Team(
                     id = t.optString("id"),
                     displayName = t.optString("displayName", "Team"),
+                    groupId = t.optJSONObject("teamSiteInformation")?.optString("groupId", "") ?: "",
                     channels =
                         (t.optJSONArray("channels") ?: JSONArray()).objects().map { c ->
                             Channel(id = c.optString("id"), displayName = c.optString("displayName", "Channel"))

@@ -143,7 +143,7 @@ private fun TeamsListView(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Avatar(name = team.displayName, size = 48.dp, isGroup = true, photoUrl = graphGroupPhotoUrl(team.id))
+                    Avatar(name = team.displayName, size = 48.dp, isGroup = true, photoUrl = graphGroupPhotoUrl(team.groupId))
                     Spacer(Modifier.width(14.dp))
                     Column {
                         Text(
@@ -226,7 +226,8 @@ private fun ChannelMessagesView(messages: List<ChannelMessage>) {
                         Avatar(
                             name = msg.senderName,
                             size = 32.dp,
-                            photoUrl = graphProfilePhotoUrl(msg.senderObjectId),
+                            isBot = msg.isBot,
+                            photoUrl = msg.senderPhotoUrl ?: graphProfilePhotoUrl(msg.senderObjectId),
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(msg.senderName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyMedium)
@@ -306,7 +307,8 @@ private fun ReplyRow(reply: ChannelMessage) {
         Avatar(
             name = reply.senderName,
             size = 24.dp,
-            photoUrl = graphProfilePhotoUrl(reply.senderObjectId),
+            isBot = reply.isBot,
+            photoUrl = reply.senderPhotoUrl ?: graphProfilePhotoUrl(reply.senderObjectId),
         )
         Spacer(Modifier.width(8.dp))
         Column {

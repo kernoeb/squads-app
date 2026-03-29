@@ -7,6 +7,7 @@ import com.squads.app.data.ChannelMessage
 import com.squads.app.data.Team
 import com.squads.app.data.TeamsApiClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -38,6 +39,7 @@ class TeamsViewModel
         val error: StateFlow<String?> = _error
 
         private var lastLoadTime = 0L
+        private var channelJob: Job? = null
 
         init {
             loadTeams()
@@ -84,13 +86,18 @@ class TeamsViewModel
             channelName: String,
         ) {
             _selectedChannelName.value = channelName
-            viewModelScope.launch {
-                try {
-                    _channelMessages.value = api.getChannelMessages(teamId, channelId)
-                } catch (e: Exception) {
-                    _error.value = "Failed to load messages: ${e.message}"
+            val groupId = _selectedTeam.value?.groupId ?: ""
+            channelJob?.cancel()
+            channelJob =
+                viewModelScope.launch {
+                    try {
+                        val messages = api.getChannelMessages(teamId, channelId)
+                        _channelMessages.value = messages
+                        _channelMessages.value = api.resolveAndApplyBotIcons(messages, groupId)
+                    } catch (e: Exception) {
+                        _error.value = "Failed to load messages: ${e.message}"
+                    }
                 }
-            }
         }
 
         fun goBack() {

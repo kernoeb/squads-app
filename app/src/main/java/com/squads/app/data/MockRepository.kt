@@ -590,41 +590,45 @@ class MockRepository
         fun getTeams(): List<Team> =
             listOf(
                 Team(
-                    "t1",
-                    "Engineering",
-                    listOf(
-                        Channel("ch1", "General"),
-                        Channel("ch2", "Backend"),
-                        Channel("ch3", "Frontend"),
-                        Channel("ch4", "DevOps"),
-                    ),
+                    id = "t1",
+                    displayName = "Engineering",
+                    channels =
+                        listOf(
+                            Channel("ch1", "General"),
+                            Channel("ch2", "Backend"),
+                            Channel("ch3", "Frontend"),
+                            Channel("ch4", "DevOps"),
+                        ),
                 ),
                 Team(
-                    "t2",
-                    "Product",
-                    listOf(
-                        Channel("ch5", "General"),
-                        Channel("ch6", "Roadmap"),
-                        Channel("ch7", "Customer Feedback"),
-                    ),
+                    id = "t2",
+                    displayName = "Product",
+                    channels =
+                        listOf(
+                            Channel("ch5", "General"),
+                            Channel("ch6", "Roadmap"),
+                            Channel("ch7", "Customer Feedback"),
+                        ),
                 ),
                 Team(
-                    "t3",
-                    "Design",
-                    listOf(
-                        Channel("ch8", "General"),
-                        Channel("ch9", "Brand"),
-                        Channel("ch10", "UX Research"),
-                    ),
+                    id = "t3",
+                    displayName = "Design",
+                    channels =
+                        listOf(
+                            Channel("ch8", "General"),
+                            Channel("ch9", "Brand"),
+                            Channel("ch10", "UX Research"),
+                        ),
                 ),
                 Team(
-                    "t4",
-                    "All Company",
-                    listOf(
-                        Channel("ch11", "General"),
-                        Channel("ch12", "Announcements"),
-                        Channel("ch13", "Random"),
-                    ),
+                    id = "t4",
+                    displayName = "All Company",
+                    channels =
+                        listOf(
+                            Channel("ch11", "General"),
+                            Channel("ch12", "Announcements"),
+                            Channel("ch13", "Random"),
+                        ),
                 ),
             )
 
