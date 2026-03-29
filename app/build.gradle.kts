@@ -39,6 +39,7 @@ android {
 
     buildTypes {
         debug {
+            applicationIdSuffix = ".dev"
             if (file("release.keystore").exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }

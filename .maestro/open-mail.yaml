@@ -1,4 +1,4 @@
-appId: com.squads.app
+appId: com.squads.app.dev
 name: "Open a Mail"
 ---
 - runFlow: _shared/login-demo.yaml

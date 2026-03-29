@@ -29,7 +29,7 @@ install:
 
 # Build + install + launch on device
 run: install
-    adb shell am start -n com.squads.app/.MainActivity
+    adb shell am start -n com.squads.app.dev/.com.squads.app.MainActivity
 
 # ─── Quality ──────────────────────────────────────────────────
 
@@ -79,11 +79,11 @@ apk-size: build
 
 # Open logcat filtered to Squads
 logcat:
-    adb logcat --pid=$(adb shell pidof -s com.squads.app) 2>/dev/null || adb logcat | grep -i squads
+    adb logcat --pid=$(adb shell pidof -s com.squads.app.dev) 2>/dev/null || adb logcat | grep -i squads
 
 # Kill the app on device
 kill:
-    adb shell am force-stop com.squads.app
+    adb shell am force-stop com.squads.app.dev
 
 # Restart: kill + run
 restart: kill run

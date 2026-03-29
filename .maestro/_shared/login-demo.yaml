@@ -1,4 +1,4 @@
-appId: com.squads.app
+appId: com.squads.app.dev
 ---
 - clearState
 - launchApp

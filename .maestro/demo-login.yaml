@@ -1,4 +1,4 @@
-appId: com.squads.app
+appId: com.squads.app.dev
 name: "Demo Login"
 ---
 - runFlow: _shared/login-demo.yaml

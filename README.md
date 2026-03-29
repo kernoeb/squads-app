@@ -44,6 +44,8 @@ just run
 
 On first launch, sign in with a Microsoft work/school account via the device code flow, or tap **Continue with demo data** to explore without credentials.
 
+Debug builds install as **Squads Dev** (`com.squads.app.dev`) alongside the release version, so you can run both without losing your login session.
+
 ## Development
 
 ```bash

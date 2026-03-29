@@ -14,12 +14,14 @@ just lint         # Android lint
 just test         # unit tests
 just test-device  # instrumented tests (requires device/emulator)
 just maestro      # run all Maestro UI test flows
-just logcat       # filtered logcat for com.squads.app
+just logcat       # filtered logcat for com.squads.app.dev
 just restart      # kill + relaunch
 just ship 0.3.0   # tag, commit, push, wait for CI, download APK
 ```
 
 Gradle directly: `./gradlew assembleDebug`, `./gradlew installDebug`, `./gradlew ktlintCheck`.
+
+**Build variants**: Debug builds use `applicationIdSuffix = ".dev"` (`com.squads.app.dev`) so dev and production versions can coexist on the same device. Debug shows as "Squads Dev" in the launcher. Auth tokens are isolated per variant (separate SharedPreferences). Maestro flows and justfile commands target the `.dev` package.
 
 Maestro binary: `~/.maestro/bin/maestro` (not in PATH). Run individual flows with `~/.maestro/bin/maestro test .maestro/<flow>.yaml`.
 
@@ -58,4 +60,4 @@ MVVM with Jetpack Compose. Single-activity app (`MainActivity`) → `SquadsApp()
 ## Testing
 
 - **Unit tests** (JUnit 6): `HtmlParserTest`, `JsonExtensionsTest`, `PresenceAvailabilityTest`, `TimeExtensionsTest` in `app/src/test/`. Run with `just test`.
-- **UI tests** (Maestro): 6 flows in `.maestro/` covering demo login, tab navigation, chat open, search, teams/channels, profile/logout. Run with `just maestro`.
+- **UI tests** (Maestro): flows in `.maestro/` covering demo login, tab navigation, chat open, search, teams/channels, thread replies, mail, profile/logout. Run with `just maestro`.
