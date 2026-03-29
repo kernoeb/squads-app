@@ -45,9 +45,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.Channel
 import com.squads.app.data.ChannelMessage
 import com.squads.app.data.Team
-import com.squads.app.data.toRelativeTime
 import com.squads.app.data.graphGroupPhotoUrl
 import com.squads.app.data.graphProfilePhotoUrl
+import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ReactionChip

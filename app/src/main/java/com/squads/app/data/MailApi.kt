@@ -20,8 +20,26 @@ class MailApi
 
         suspend fun getMailDetail(messageId: String): MailMessage {
             if (api.isDemoMode) return api.mockRepository.getMailDetail(messageId)
-            return parseMailMessage(JSONObject(api.graphGet("https://graph.microsoft.com/v1.0/me/messages/$messageId")))
+            val json = JSONObject(api.graphGet("https://graph.microsoft.com/v1.0/me/messages/$messageId?\$expand=attachments"))
+            val mail = parseMailMessage(json)
+            val attachments = json.optJSONArray("attachments") ?: return mail
+            val cidMap = mutableMapOf<String, String>()
+            for (att in attachments.objects()) {
+                if (!att.optBoolean("isInline", false)) continue
+                val contentId = att.optString("contentId", "").ifEmpty { continue }
+                val contentType = att.optString("contentType", "image/png")
+                val contentBytes = att.optString("contentBytes", "").ifEmpty { continue }
+                cidMap[contentId] = "data:$contentType;base64,$contentBytes"
+            }
+            if (cidMap.isEmpty()) return mail
+            val body =
+                CID_REGEX.replace(mail.body) { match ->
+                    cidMap[match.groupValues[1]] ?: match.value
+                }
+            return mail.copy(body = body)
         }
+
+        suspend fun getTokenForUrl(url: String): String? = api.getTokenForUrl(url)
 
         private fun parseMailMessage(m: JSONObject): MailMessage {
             val from = m.optJSONObject("from")?.optJSONObject("emailAddress")
@@ -44,5 +62,9 @@ class MailApi
                 hasAttachments = m.optBoolean("hasAttachments", false),
                 importance = m.optString("importance", "normal"),
             )
+        }
+
+        companion object {
+            private val CID_REGEX = Regex("""cid:([^"'\s)]+)""")
         }
     }
