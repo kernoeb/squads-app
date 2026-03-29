@@ -53,6 +53,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.MailFolder
 import com.squads.app.data.MailImportance
 import com.squads.app.data.MailMessage
+import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.ImportanceBadge
@@ -144,7 +145,7 @@ private fun MailRow(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        Avatar(name = mail.fromName)
+        Avatar(name = mail.fromName, photoUrl = graphProfilePhotoUrl(mail.fromAddress))
 
         Spacer(Modifier.width(14.dp))
 
@@ -244,7 +245,7 @@ fun MailDetailScreen(
                 Spacer(Modifier.height(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Avatar(name = mail.fromName, size = 40.dp)
+                    Avatar(name = mail.fromName, size = 40.dp, photoUrl = graphProfilePhotoUrl(mail.fromAddress))
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(mail.fromName, fontWeight = FontWeight.SemiBold)
