@@ -1,0 +1,27 @@
+appId: com.squads.app.dev
+name: "Mail Folder Navigation"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn: "Mail"
+- assertVisible: "Mail"
+
+# Folder chips are visible
+- assertVisible: "Inbox"
+- assertVisible: "Sent Items"
+
+# Default folder is Inbox — Patricia VP is an inbox mail
+- assertVisible: "Patricia VP"
+
+# Switch to Sent Items
+- tapOn: "Sent Items"
+- assertNotVisible: "Patricia VP"
+- assertVisible: "You"
+
+# Switch to Drafts
+- tapOn: "Drafts"
+- assertVisible: "You"
+
+# Switch back to Inbox
+- tapOn: "Inbox"
+- assertVisible: "Patricia VP"

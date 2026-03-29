@@ -192,7 +192,7 @@ class MockRepository
                     receivedDateTime = now.minusHours(1),
                     isRead = false,
                     hasAttachments = true,
-                    importance = "high",
+                    importance = MailImportance.HIGH,
                     folderId = "inbox",
                 ),
                 MailMessage(

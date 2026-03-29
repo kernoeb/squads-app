@@ -71,7 +71,7 @@ class MailApi
             }
         }
 
-        suspend fun getTokenForUrl(url: String): String? = api.getTokenForUrl(url)
+        suspend fun getGraphToken(): String? = api.getTokenForUrl("https://graph.microsoft.com")
 
         private fun parseMailMessage(
             m: JSONObject,
@@ -95,7 +95,7 @@ class MailApi
                 isRead = m.optBoolean("isRead", true),
                 isDraft = m.optBoolean("isDraft", false),
                 hasAttachments = m.optBoolean("hasAttachments", false),
-                importance = m.optString("importance", "normal"),
+                importance = MailImportance.fromString(m.optString("importance", "normal")),
                 folderId = m.optString("parentFolderId", folderId),
             )
         }

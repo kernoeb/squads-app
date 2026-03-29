@@ -16,9 +16,9 @@ Squads lets you access your chats, emails, calendar, and teams through a clean, 
 ## Features
 
 - **Chats** — real-time conversations via Trouter push notifications, inline images, reactions, swipe-to-reply with blockquotes, and profile photos
-- **Mail** — inbox with importance badges, attachment indicators, read/unread state, and detail view
+- **Mail** — folder navigation, importance badges, attachment indicators, read/unread state, and rich HTML detail view with dark mode
 - **Calendar** — today/week toggle with color-coded response status, event details, attendees, and online meeting links
-- **Teams** — browse teams, channels, and threaded messages with reactions and reply counts
+- **Teams** — browse teams, channels, and threaded messages with subjects, expandable replies, and reactions
 - **Search** — unified search across chats, mail, and calendar events
 - **Demo mode** — explore the app with realistic sample data, no account needed
 
@@ -63,7 +63,7 @@ just logcat       # filtered logcat output
 just restart      # kill + relaunch
 just clean        # clean build artifacts
 just deps         # show project dependencies
-just ship 0.3.0   # tag, push, wait for CI, download APK
+just ship 0.3.0   # bump version, tag, and push
 ```
 
 ## Tech stack
@@ -103,7 +103,7 @@ app/src/main/java/com/squads/app/
 │   ├── calendar/   # Calendar views
 │   ├── chats/      # Chat list, detail, components, image viewer
 │   ├── components/ # Shared UI (Avatar, ChatAvatar, ScreenHeader, badges)
-│   ├── mail/       # Mail list & detail
+│   ├── mail/       # Mail list, folder chips & HTML detail (WebView)
 │   ├── navigation/ # Navigation graph & type-safe routes
 │   ├── profile/    # Profile & settings
 │   ├── search/     # Search screen

@@ -218,12 +218,14 @@ private fun MainApp(authViewModel: AuthViewModel) {
                         Surface(modifier = Modifier.fillMaxSize()) {
                             val selectedMail by mailViewModel.selectedMail.collectAsState()
                             val isDetailLoading by mailViewModel.isDetailLoading.collectAsState()
+                            val authToken by mailViewModel.authToken.collectAsState()
                             if (selectedMail != null) {
                                 MailDetailScreen(
                                     mail = selectedMail!!,
                                     onBack = goBack,
                                     isBodyLoading = isDetailLoading,
-                                    tokenProvider = { url -> mailViewModel.getTokenForUrl(url) },
+                                    httpClient = mailViewModel.okHttpClient,
+                                    authToken = authToken,
                                 )
                             } else {
                                 LoadingScreen()

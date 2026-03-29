@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.squads.app.data.MailFolder
+import com.squads.app.data.MailImportance
 import com.squads.app.data.MailMessage
 import com.squads.app.data.toRelativeTime
 import com.squads.app.ui.components.Avatar
@@ -59,6 +61,7 @@ import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.components.UnreadBadge
 import com.squads.app.ui.theme.BottomNavHeight
 import com.squads.app.viewmodel.MailViewModel
+import okhttp3.OkHttpClient
 
 @Composable
 fun MailScreen(
@@ -182,7 +185,7 @@ private fun MailRow(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ImportanceBadge(mail.importance)
-                if (mail.importance == "high") Spacer(Modifier.width(6.dp))
+                if (mail.importance == MailImportance.HIGH) Spacer(Modifier.width(6.dp))
                 Text(
                     text = mail.subject,
                     style = MaterialTheme.typography.bodyMedium,
@@ -216,7 +219,8 @@ fun MailDetailScreen(
     mail: MailMessage,
     onBack: () -> Unit,
     isBodyLoading: Boolean = false,
-    tokenProvider: (suspend (String) -> String?)? = null,
+    httpClient: OkHttpClient? = null,
+    authToken: String? = null,
 ) {
     Scaffold(
         topBar = {
@@ -286,7 +290,8 @@ fun MailDetailScreen(
                 else -> {
                     MailBodyWebView(
                         html = mail.body,
-                        tokenProvider = tokenProvider,
+                        httpClient = httpClient,
+                        authToken = authToken,
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -298,18 +303,18 @@ fun MailDetailScreen(
 @Composable
 private fun MailBodyWebView(
     html: String,
-    tokenProvider: (suspend (String) -> String?)? = null,
+    httpClient: OkHttpClient? = null,
+    authToken: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val textColor = MaterialTheme.colorScheme.onBackground
     val bgColor = MaterialTheme.colorScheme.background
     val linkColor = MaterialTheme.colorScheme.primary
-    val textHex = remember(textColor) { String.format("#%06X", textColor.toArgb() and 0xFFFFFF) }
-    val bgHex = remember(bgColor) { String.format("#%06X", bgColor.toArgb() and 0xFFFFFF) }
-    val linkHex = remember(linkColor) { String.format("#%06X", linkColor.toArgb() and 0xFFFFFF) }
+    val textHex = remember(textColor) { textColor.toHex() }
+    val bgHex = remember(bgColor) { bgColor.toHex() }
+    val linkHex = remember(linkColor) { linkColor.toHex() }
     val bgArgb = remember(bgColor) { bgColor.toArgb() }
 
-    // Strip outer <html>/<head>/<body> tags so our wrapper CSS applies cleanly
     val bodyContent =
         remember(html) {
             BODY_TAG_REGEX
@@ -366,34 +371,24 @@ private fun MailBodyWebView(
                             request: WebResourceRequest?,
                         ): WebResourceResponse? {
                             val url = request?.url?.toString() ?: return null
-                            val provider = tokenProvider ?: return null
+                            val client = httpClient ?: return null
+                            val token = authToken ?: return null
                             if ("graph.microsoft.com" !in url && "teams.microsoft.com" !in url) return null
-                            val conn =
-                                try {
-                                    val token = kotlinx.coroutines.runBlocking { provider(url) } ?: return null
-                                    val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-                                    c.setRequestProperty("Authorization", "Bearer $token")
-                                    c.connect()
-                                    c
-                                } catch (_: Exception) {
-                                    return null
-                                }
                             return try {
-                                if (conn.responseCode != 200) {
-                                    conn.disconnect()
+                                val okhttpRequest =
+                                    okhttp3.Request
+                                        .Builder()
+                                        .url(url)
+                                        .header("Authorization", "Bearer $token")
+                                        .build()
+                                val response = client.newCall(okhttpRequest).execute()
+                                if (!response.isSuccessful) {
+                                    response.close()
                                     return null
                                 }
-                                val contentType = conn.contentType?.substringBefore(";") ?: "image/png"
-                                val stream =
-                                    object : java.io.FilterInputStream(conn.inputStream) {
-                                        override fun close() {
-                                            super.close()
-                                            conn.disconnect()
-                                        }
-                                    }
-                                WebResourceResponse(contentType, "UTF-8", stream)
+                                val contentType = response.header("Content-Type")?.substringBefore(";") ?: "image/png"
+                                WebResourceResponse(contentType, "UTF-8", response.body.byteStream())
                             } catch (_: Exception) {
-                                conn.disconnect()
                                 null
                             }
                         }
@@ -408,8 +403,11 @@ private fun MailBodyWebView(
                 webView.loadDataWithBaseURL(null, styledHtml, "text/html", "UTF-8", null)
             }
         },
+        onRelease = { it.destroy() },
         modifier = modifier,
     )
 }
+
+private fun Color.toHex(): String = String.format("#%06X", toArgb() and 0xFFFFFF)
 
 private val BODY_TAG_REGEX = Regex("""<body[^>]*>([\s\S]*)</body>""", RegexOption.IGNORE_CASE)

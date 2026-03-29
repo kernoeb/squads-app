@@ -2,6 +2,7 @@ package com.squads.app.data.db
 
 import com.squads.app.data.ChatConversation
 import com.squads.app.data.ChatMessage
+import com.squads.app.data.MailImportance
 import com.squads.app.data.MailMessage
 import com.squads.app.data.Reaction
 import com.squads.app.data.toEpochMillis
@@ -99,7 +100,7 @@ fun MailMessage.toEntity(): MailMessageEntity =
         isRead = isRead,
         isDraft = isDraft,
         hasAttachments = hasAttachments,
-        importance = importance,
+        importance = importance.name.lowercase(),
         folderId = folderId,
     )
 
@@ -116,7 +117,7 @@ fun MailMessageEntity.toDomain(): MailMessage =
         isRead = isRead,
         isDraft = isDraft,
         hasAttachments = hasAttachments,
-        importance = importance,
+        importance = MailImportance.fromString(importance),
         folderId = folderId,
     )
 

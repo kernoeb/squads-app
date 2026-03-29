@@ -59,9 +59,20 @@ data class MailMessage(
     val isRead: Boolean = true,
     val isDraft: Boolean = false,
     val hasAttachments: Boolean = false,
-    val importance: String = "normal",
+    val importance: MailImportance = MailImportance.NORMAL,
     val folderId: String = "",
 )
+
+enum class MailImportance {
+    LOW,
+    NORMAL,
+    HIGH,
+    ;
+
+    companion object {
+        fun fromString(value: String): MailImportance = entries.find { it.name.equals(value, ignoreCase = true) } ?: NORMAL
+    }
+}
 
 // ─── Calendar models ────────────────────────────────────────────
 

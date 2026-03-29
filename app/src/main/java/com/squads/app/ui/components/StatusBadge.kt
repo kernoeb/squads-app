@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.squads.app.data.MailImportance
 import com.squads.app.data.PresenceAvailability
 
 @Composable
@@ -94,10 +95,10 @@ fun ReactionChip(
 
 @Composable
 fun ImportanceBadge(
-    importance: String,
+    importance: MailImportance,
     modifier: Modifier = Modifier,
 ) {
-    if (importance != "high") return
+    if (importance != MailImportance.HIGH) return
     Box(
         modifier =
             modifier

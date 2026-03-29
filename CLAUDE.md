@@ -16,7 +16,7 @@ just test-device  # instrumented tests (requires device/emulator)
 just maestro      # run all Maestro UI test flows
 just logcat       # filtered logcat for com.squads.app.dev
 just restart      # kill + relaunch
-just ship 0.3.0   # tag, commit, push, wait for CI, download APK
+just ship 0.3.0   # bump version, tag, and push
 ```
 
 Gradle directly: `./gradlew assembleDebug`, `./gradlew installDebug`, `./gradlew ktlintCheck`.
@@ -31,7 +31,7 @@ MVVM with Jetpack Compose. Single-activity app (`MainActivity`) → `SquadsApp()
 
 **Navigation**: Navigation 3 with type-safe serializable routes (`ui/navigation/Routes.kt`). `NavigationState` manages independent back stacks per tab. `SharedViewModelStoreNavEntryDecorator` enables ViewModel sharing between parent/child entries.
 
-**Data flow**: Domain-focused API classes (`TeamsApiClient` for chat/presence/teams ~790 LOC, `MailApi`, `CalendarApi`) → Repositories (`ChatRepository`, `MailRepository`) → Room DB → ViewModels expose `StateFlow` → Compose UI collects state. Shared JSON helpers in `JsonExtensions.kt` (`str()`, `objects()`).
+**Data flow**: Domain-focused API classes (`TeamsApiClient` for chat/presence/teams ~800 LOC, `MailApi`, `CalendarApi`) → Repositories (`ChatRepository`, `MailRepository`) → Room DB → ViewModels expose `StateFlow` → Compose UI collects state. Shared JSON helpers in `JsonExtensions.kt` (`str()`, `objects()`).
 
 **Real-time**: `TrouterClient` maintains a WebSocket to Teams' Trouter service for instant message notifications and presence updates. Falls back to polling (15-60s for chat list, 10-30s for active chat, 5min for presence). `NetworkMonitor` provides reactive connectivity state.
 
@@ -52,6 +52,8 @@ MVVM with Jetpack Compose. Single-activity app (`MainActivity`) → `SquadsApp()
 - **Presence**: Type-safe `PresenceAvailability` enum (in `Models.kt`) with `fromString()`, `displayName`, and `isOnline`. `Avatar` accepts an optional `presence: PresenceAvailability?` to overlay a `PresenceBadge`. Presence data flows through `ChatsViewModel.presenceMap: Map<String, PresenceAvailability>` fed by two sources: (1) real-time Trouter subscription via UPS pubsub, and (2) 5-minute polling fallback. The Trouter subscription is established on connect by `onTrouterConnected()` and re-established on reconnect.
 - **ChatDetailScreen**: Split into `ChatDetailScreen.kt` (~310 LOC), `ChatDetailComponents.kt` (message bubbles, input bar), and `ImageViewer.kt`. `ChatAvatar` composable (in `ui/components/`) deduplicates GroupAvatar/Avatar selection logic.
 - **HTML messages**: Teams messages are HTML. `HtmlParser` extracts text, `EmojiManager` normalizes emoji rendering. Replies use `<blockquote>` formatting.
+- **Mail**: `MailApi` handles folders, messages, and detail (with inline CID attachment resolution). `MailScreen` has folder chips (`FilterChip` in `LazyRow`), mail list, and `MailDetailScreen` with a WebView for rich HTML rendering (dark mode aware, auth token injection for inline images). `MailViewModel` tracks `currentFolderId`; Room observes by folder via `flatMapLatest`.
+- **Teams threads**: `ChannelMessage` has `subject` and `replies: List<ChannelMessage>` (computed `replyCount`). `TeamsScreen` shows thread subjects and expandable reply sections with `AnimatedVisibility`.
 
 ## API & Token Management
 

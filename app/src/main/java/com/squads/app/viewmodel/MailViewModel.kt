@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -28,6 +29,7 @@ class MailViewModel
         private val mailApi: MailApi,
         private val mailRepository: MailRepository,
         private val authManager: AuthManager,
+        val okHttpClient: OkHttpClient,
     ) : ViewModel() {
         private val _folders = MutableStateFlow<List<MailFolder>>(emptyList())
         val folders: StateFlow<List<MailFolder>> = _folders
@@ -53,6 +55,9 @@ class MailViewModel
 
         private val _isDetailLoading = MutableStateFlow(false)
         val isDetailLoading: StateFlow<Boolean> = _isDetailLoading
+
+        private val _authToken = MutableStateFlow<String?>(null)
+        val authToken: StateFlow<String?> = _authToken
 
         private val _error = MutableStateFlow<String?>(null)
         val error: StateFlow<String?> = _error
@@ -83,10 +88,9 @@ class MailViewModel
                     if (_currentFolderId.value == null && folders.isNotEmpty()) {
                         _currentFolderId.value = inboxId ?: folders.first().id
                     }
+                    refreshMail(forceRefresh = true)
                 } catch (e: Exception) {
                     Log.w("MailViewModel", "Failed to load folders", e)
-                } finally {
-                    refreshMail(forceRefresh = true)
                 }
             }
         }
@@ -121,7 +125,17 @@ class MailViewModel
             _isDetailLoading.value = true
             viewModelScope.launch {
                 try {
-                    _selectedMail.value = mailApi.getMailDetail(mail.id)
+                    val detailDeferred = async { mailApi.getMailDetail(mail.id) }
+                    val tokenDeferred =
+                        async {
+                            try {
+                                mailApi.getGraphToken()
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+                    _selectedMail.value = detailDeferred.await()
+                    _authToken.value = tokenDeferred.await()
                 } catch (e: Exception) {
                     Log.w("MailViewModel", "Failed to load mail detail", e)
                 } finally {
@@ -132,7 +146,6 @@ class MailViewModel
 
         fun clearSelection() {
             _selectedMail.value = null
+            _authToken.value = null
         }
-
-        suspend fun getTokenForUrl(url: String): String? = mailApi.getTokenForUrl(url)
     }
