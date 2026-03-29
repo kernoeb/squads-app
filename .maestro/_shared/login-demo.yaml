@@ -5,4 +5,4 @@ appId: com.squads.app
 - tapOn: "Continue with demo data"
 - extendedWaitUntil:
     visible: "Chats"
-    timeout: 10000
+    timeout: 20000

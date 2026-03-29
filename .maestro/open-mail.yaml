@@ -1,0 +1,26 @@
+appId: com.squads.app
+name: "Open a Mail"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn: "Mail"
+- assertVisible: "Mail"
+
+# Open a rich HTML mail (Q1 Review with table)
+- tapOn: "Patricia VP"
+- assertVisible:
+    text: ".*Q1 Review.*"
+
+- back
+- assertVisible: "Mail"
+
+# Open the hackathon results mail
+- scrollUntilVisible:
+    element: "Engineering Lead"
+    direction: DOWN
+- tapOn: "Engineering Lead"
+- assertVisible:
+    text: ".*Hackathon.*"
+
+- back
+- assertVisible: "Mail"

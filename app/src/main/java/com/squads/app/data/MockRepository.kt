@@ -289,15 +289,116 @@ class MockRepository
 
         fun getMailDetail(messageId: String): MailMessage {
             val mail = getMail().first { it.id == messageId }
-            return mail.copy(
-                body =
+            val body = MAIL_BODIES[messageId] ?: defaultMailBody(mail)
+            return mail.copy(body = body)
+        }
+
+        private fun defaultMailBody(mail: MailMessage): String =
+            """
+            <p>Hi team,</p>
+            <p>${mail.bodyPreview}</p>
+            <p>Best regards,<br/>${mail.fromName}</p>
+            """.trimIndent()
+
+        @Suppress("ktlint:standard:max-line-length")
+        private val MAIL_BODIES: Map<String, String> =
+            mapOf(
+                // e1: Q1 Review — rich HTML with table, inline styles, colored text
+                "e1" to
                     """
+                    <div style="font-family: Calibri, sans-serif; font-size: 14px;">
                     <p>Hi team,</p>
-                    <p>${mail.bodyPreview}</p>
-                    <p>Best regards,<br/>${mail.fromName}</p>
+                    <p>Please find below the action items from today's <b>Q1 quarterly review</b>. We need to address the performance metrics by <span style="color: red; font-weight: bold;">next Friday</span>.</p>
+                    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 16px 0;">
+                        <tr style="background-color: #4472C4; color: white;">
+                            <th>Action Item</th><th>Owner</th><th>Due Date</th><th>Status</th>
+                        </tr>
+                        <tr>
+                            <td>Finalize Q2 roadmap</td><td>James Architect</td><td>Mar 28</td>
+                            <td style="color: orange;">⏳ In Progress</td>
+                        </tr>
+                        <tr style="background-color: #f2f2f2;">
+                            <td>Fix login latency regression</td><td>DevOps Bot</td><td>Mar 25</td>
+                            <td style="color: green;">✅ Done</td>
+                        </tr>
+                        <tr>
+                            <td>Update security training</td><td>IT Security</td><td>Mar 31</td>
+                            <td style="color: red;">❌ Blocked</td>
+                        </tr>
+                    </table>
+                    <p>Please update your items in the tracker. Let me know if you have any questions.</p>
+                    <p>Best,<br/><b>Patricia VP</b><br/><span style="color: gray; font-size: 12px;">Vice President, Engineering · Contoso Ltd.</span></p>
+                    </div>
+                    """.trimIndent(),
+                // e6: Expense report — automated system email with styled card
+                "e6" to
+                    """
+                    <div style="font-family: Segoe UI, sans-serif; font-size: 14px; color: #333;">
+                    <div style="background: #f0f9f0; border-left: 4px solid #28a745; padding: 16px; margin: 16px 0; border-radius: 4px;">
+                        <p style="margin: 0 0 8px; font-size: 18px; font-weight: bold; color: #28a745;">✅ Expense Report Approved</p>
+                        <table style="width: 100%; font-size: 14px;">
+                            <tr><td style="padding: 4px 0; color: #666;">Report #</td><td style="padding: 4px 0;"><b>4521</b></td></tr>
+                            <tr><td style="padding: 4px 0; color: #666;">Amount</td><td style="padding: 4px 0;"><b style="font-size: 16px;">$342.50</b></td></tr>
+                            <tr><td style="padding: 4px 0; color: #666;">Category</td><td style="padding: 4px 0;">Travel &amp; Meals</td></tr>
+                            <tr><td style="padding: 4px 0; color: #666;">Reimbursement</td><td style="padding: 4px 0;">Next pay cycle (Apr 1)</td></tr>
+                        </table>
+                    </div>
+                    <p style="font-size: 12px; color: #999;">This is an automated message from the Contoso Finance System. Do not reply.</p>
+                    </div>
+                    """.trimIndent(),
+                // e8: Product announcement — newsletter style with buttons and sections
+                "e8" to
+                    """
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 32px; text-align: center; border-radius: 8px 8px 0 0;">
+                        <h1 style="margin: 0; font-size: 24px;">🚀 New Analytics Dashboard</h1>
+                        <p style="margin: 8px 0 0; opacity: 0.9;">Introducing real-time insights for your team</p>
+                    </div>
+                    <div style="padding: 24px; background: #ffffff; border: 1px solid #e0e0e0;">
+                        <p>Hi team,</p>
+                        <p>We're excited to announce our new analytics dashboard with the following features:</p>
+                        <ul>
+                            <li><b>Real-time metrics</b> — see your KPIs update live</li>
+                            <li><b>Custom dashboards</b> — build views tailored to your team</li>
+                            <li><b>Export to PDF</b> — share reports with stakeholders</li>
+                            <li><b>Slack integration</b> — get alerts where you work</li>
+                        </ul>
+                        <div style="text-align: center; margin: 24px 0;">
+                            <a href="https://analytics.contoso.com" style="background: #667eea; color: white; padding: 12px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Try it now →</a>
+                        </div>
+                        <p style="color: #666; font-size: 13px;">Questions? Reach out to <a href="mailto:product@contoso.com">product@contoso.com</a></p>
+                    </div>
+                    <div style="padding: 16px; text-align: center; font-size: 11px; color: #999;">
+                        Contoso Product Team · <a href="#" style="color: #999;">Unsubscribe</a>
+                    </div>
+                    </div>
+                    """.trimIndent(),
+                // e12: Hackathon results — rich with emojis, rankings, colored badges
+                "e12" to
+                    """
+                    <div style="font-family: Segoe UI, sans-serif; font-size: 14px;">
+                    <h2 style="color: #333;">🏆 Hackathon 2026 Results</h2>
+                    <p>Congratulations to all 47 participants across 12 teams! Here are the winning projects:</p>
+                    <div style="background: #fff8e1; border: 1px solid #ffcc02; border-radius: 8px; padding: 16px; margin: 12px 0;">
+                        <p style="margin: 0 0 4px;"><span style="background: #FFD700; color: #333; padding: 2px 8px; border-radius: 4px; font-weight: bold;">🥇 1st Place</span></p>
+                        <p style="margin: 4px 0; font-size: 16px;"><b>AI Code Reviewer</b> — Team Alpha</p>
+                        <p style="margin: 4px 0; color: #666;">Automated PR reviews using LLM with codebase context</p>
+                    </div>
+                    <div style="background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 12px 0;">
+                        <p style="margin: 0 0 4px;"><span style="background: #C0C0C0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">🥈 2nd Place</span></p>
+                        <p style="margin: 4px 0; font-size: 16px;"><b>Smart Meeting Notes</b> — Team Beta</p>
+                        <p style="margin: 4px 0; color: #666;">Real-time transcription and action item extraction</p>
+                    </div>
+                    <div style="background: #fff5ee; border: 1px solid #deb887; border-radius: 8px; padding: 16px; margin: 12px 0;">
+                        <p style="margin: 0 0 4px;"><span style="background: #CD7F32; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold;">🥉 3rd Place</span></p>
+                        <p style="margin: 4px 0; font-size: 16px;"><b>Zero-Click Deploy</b> — Team Gamma</p>
+                        <p style="margin: 4px 0; color: #666;">One-button production deploys with automatic rollback</p>
+                    </div>
+                    <p>Demo recordings will be shared next week. Thanks to everyone who made this possible! 🎉</p>
+                    <p>— Engineering Lead</p>
+                    </div>
                     """.trimIndent(),
             )
-        }
 
         // ─── Calendar ───────────────────────────────────────────────
 
