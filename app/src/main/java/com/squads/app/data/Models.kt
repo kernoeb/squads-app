@@ -102,12 +102,15 @@ data class Channel(
 data class ChannelMessage(
     val id: String,
     val content: String,
+    val subject: String = "",
     val senderName: String,
     val senderObjectId: String = "",
     val timestamp: LocalDateTime,
-    val replyCount: Int = 0,
     val reactions: List<Reaction> = emptyList(),
-)
+    val replies: List<ChannelMessage> = emptyList(),
+) {
+    val replyCount: Int get() = replies.size
+}
 
 // ─── User models ────────────────────────────────────────────────
 

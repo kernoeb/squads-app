@@ -1,0 +1,29 @@
+appId: com.squads.app
+name: "Teams Thread Subjects and Replies"
+---
+- runFlow: _shared/login-demo.yaml
+
+- tapOn: "Teams"
+- assertVisible: "Engineering"
+
+- tapOn: "Engineering"
+- tapOn: "General"
+- assertVisible: "# General"
+
+# Thread subjects are visible
+- assertVisible: "Auth service v2 staging deploy"
+- assertVisible: "Database migration tonight"
+
+# Tap to expand replies on first thread
+- tapOn: "3 replies"
+- assertVisible: "Testing now — login flow looks good so far"
+- assertVisible: "Found a 401 on the refresh token endpoint, can you check?"
+- assertVisible: "Fixed — was a misconfigured scope. Redeployed."
+
+# Collapse replies
+- tapOn: "Hide replies"
+- assertNotVisible: "Testing now — login flow looks good so far"
+
+# Expand replies on second thread
+- tapOn: "1 reply"
+- assertVisible: "Got it, thanks for the heads up!"

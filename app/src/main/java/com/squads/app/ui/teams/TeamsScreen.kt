@@ -1,6 +1,9 @@
 package com.squads.app.ui.teams
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -36,6 +39,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -200,11 +206,22 @@ private fun ChannelMessagesView(messages: List<ChannelMessage>) {
         contentPadding = PaddingValues(top = 8.dp, bottom = BottomNavHeight + systemNavInset + 16.dp),
     ) {
         items(messages, key = { it.id }, contentType = { "channelMessage" }) { msg ->
+            var repliesExpanded by remember { mutableStateOf(false) }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
+                    if (msg.subject.isNotEmpty()) {
+                        Text(
+                            msg.subject,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Avatar(
                             name = msg.senderName,
@@ -223,21 +240,55 @@ private fun ChannelMessagesView(messages: List<ChannelMessage>) {
                     Spacer(Modifier.height(8.dp))
                     Text(msg.content, style = MaterialTheme.typography.bodyMedium)
 
-                    if (msg.reactions.isNotEmpty() || msg.replyCount > 0) {
+                    if (msg.reactions.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                msg.reactions.forEach { r -> ReactionChip(r.emoji, r.count) }
-                            }
-                            if (msg.replyCount > 0) {
-                                Spacer(Modifier.weight(1f))
-                                Icon(
-                                    Icons.AutoMirrored.Filled.Reply,
-                                    contentDescription = null,
-                                    modifier = Modifier.height(14.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            msg.reactions.forEach { r -> ReactionChip(r.emoji, r.count) }
+                        }
+                    }
+
+                    if (msg.replyCount > 0) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            modifier =
+                                Modifier
+                                    .clickable { repliesExpanded = !repliesExpanded }
+                                    .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Reply,
+                                contentDescription = null,
+                                modifier = Modifier.height(14.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                if (repliesExpanded) {
+                                    "Hide replies"
+                                } else {
+                                    "${msg.replyCount} ${if (msg.replyCount == 1) "reply" else "replies"}"
+                                },
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium,
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = repliesExpanded,
+                            enter = expandVertically(),
+                            exit = shrinkVertically(),
+                        ) {
+                            Column {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 8.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                                 )
-                                Text("${msg.replyCount}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                msg.replies.forEach { reply ->
+                                    ReplyRow(reply)
+                                    Spacer(Modifier.height(8.dp))
+                                }
                             }
                         }
                     }
@@ -245,5 +296,36 @@ private fun ChannelMessagesView(messages: List<ChannelMessage>) {
             }
         }
         item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReplyRow(reply: ChannelMessage) {
+    Row(modifier = Modifier.padding(start = 8.dp)) {
+        Avatar(
+            name = reply.senderName,
+            size = 24.dp,
+            photoUrl = graphProfilePhotoUrl(reply.senderObjectId),
+        )
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(reply.senderName, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    reply.timestamp.toRelativeTime(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(reply.content, style = MaterialTheme.typography.bodySmall)
+            if (reply.reactions.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    reply.reactions.forEach { r -> ReactionChip(r.emoji, r.count) }
+                }
+            }
+        }
     }
 }

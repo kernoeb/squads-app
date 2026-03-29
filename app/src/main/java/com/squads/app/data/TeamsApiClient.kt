@@ -633,25 +633,34 @@ class TeamsApiClient
 
             return chains.objects().mapNotNull { chain ->
                 val msgs = chain.optJSONArray("messages") ?: return@mapNotNull null
-                val replyCount = (msgs.length() - 1).coerceAtLeast(0)
-                msgs.objects().firstNotNullOfOrNull { m ->
-                    val content = HtmlParser.parseMessage(m.str("content")).text
-                    if (content.isBlank()) return@firstNotNullOfOrNull null
-                    val sender = m.str("imdisplayname").ifEmpty { m.str("imDisplayName", "") }
-                    if (sender.isEmpty()) return@firstNotNullOfOrNull null
-                    val senderObjId = stripSenderUrl(m.str("from")).mriToObjectId()
+                val allMessages = msgs.objects()
+                val root =
+                    parseChannelMessage(allMessages.firstOrNull() ?: return@mapNotNull null)
+                        ?: return@mapNotNull null
 
-                    ChannelMessage(
-                        id = m.optString("id", ""),
-                        content = content,
-                        senderName = sender,
-                        senderObjectId = senderObjId,
-                        timestamp = parseTimestamp(m.str("composeTime").ifEmpty { m.str("composetime") }),
-                        reactions = parseReactions(m.optJSONObject("properties")?.optJSONArray("emotions")),
-                        replyCount = replyCount,
-                    )
-                }
+                val props = allMessages.first().optJSONObject("properties")
+                val subject =
+                    if (props == null || props.isNull("subject")) "" else props.optString("subject", "")
+
+                val replies = allMessages.drop(1).mapNotNull { parseChannelMessage(it) }
+
+                root.copy(subject = subject, replies = replies)
             }
+        }
+
+        private fun parseChannelMessage(m: JSONObject): ChannelMessage? {
+            val content = HtmlParser.parseMessage(m.str("content")).text
+            if (content.isBlank()) return null
+            val sender = m.str("imdisplayname").ifEmpty { m.str("imDisplayName", "") }
+            if (sender.isEmpty()) return null
+            return ChannelMessage(
+                id = m.optString("id", ""),
+                content = content,
+                senderName = sender,
+                senderObjectId = stripSenderUrl(m.str("from")).mriToObjectId(),
+                timestamp = parseTimestamp(m.str("composeTime").ifEmpty { m.str("composetime") }),
+                reactions = parseReactions(m.optJSONObject("properties")?.optJSONArray("emotions")),
+            )
         }
 
         private fun parseTeamList(arr: JSONArray): List<Team> =

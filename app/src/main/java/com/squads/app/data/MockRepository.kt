@@ -635,34 +635,79 @@ class MockRepository
             listOf(
                 ChannelMessage(
                     id = "tm1",
+                    subject = "Auth service v2 staging deploy",
                     content = "Deployed the new auth service to staging. Please test when you get a chance.",
                     senderName = "Dev Tanaka",
                     timestamp = now.minusHours(1),
-                    replyCount = 3,
                     reactions = listOf(Reaction("🚀", 4)),
+                    replies =
+                        listOf(
+                            ChannelMessage(
+                                id = "tm1r1",
+                                content = "Testing now — login flow looks good so far",
+                                senderName = "Alice Martin",
+                                timestamp = now.minusMinutes(45),
+                            ),
+                            ChannelMessage(
+                                id = "tm1r2",
+                                content = "Found a 401 on the refresh token endpoint, can you check?",
+                                senderName = "Bob Chen",
+                                timestamp = now.minusMinutes(30),
+                            ),
+                            ChannelMessage(
+                                id = "tm1r3",
+                                content = "Fixed — was a misconfigured scope. Redeployed.",
+                                senderName = "Dev Tanaka",
+                                timestamp = now.minusMinutes(15),
+                            ),
+                        ),
                 ),
                 ChannelMessage(
                     id = "tm2",
+                    subject = "Database migration tonight",
                     content = "FYI: the database migration will run tonight at 11 PM UTC. Expect ~5 min of downtime.",
                     senderName = "DBA Admin",
                     timestamp = now.minusHours(3),
-                    replyCount = 1,
                     reactions = listOf(Reaction("👍", 6)),
+                    replies =
+                        listOf(
+                            ChannelMessage(
+                                id = "tm2r1",
+                                content = "Got it, thanks for the heads up!",
+                                senderName = "Release Manager",
+                                timestamp = now.minusHours(2),
+                            ),
+                        ),
                 ),
                 ChannelMessage(
                     id = "tm3",
+                    subject = "PR #482 — caching layer",
                     content = "PR #482 is ready for review — adds the new caching layer",
                     senderName = "Alice Martin",
                     timestamp = now.minusHours(5),
-                    replyCount = 7,
                     reactions = listOf(Reaction("👀", 2)),
+                    replies =
+                        listOf(
+                            ChannelMessage(
+                                id = "tm3r1",
+                                content = "Left a few comments on the eviction policy",
+                                senderName = "Dev Tanaka",
+                                timestamp = now.minusHours(4),
+                            ),
+                            ChannelMessage(
+                                id = "tm3r2",
+                                content = "Updated — switched to LRU with a 5-min TTL",
+                                senderName = "Alice Martin",
+                                timestamp = now.minusHours(3),
+                                reactions = listOf(Reaction("👍", 2)),
+                            ),
+                        ),
                 ),
                 ChannelMessage(
                     id = "tm4",
                     content = "Reminder: code freeze starts tomorrow at 5 PM",
                     senderName = "Release Manager",
                     timestamp = now.minusDays(1),
-                    replyCount = 0,
                     reactions = listOf(Reaction("✅", 8)),
                 ),
             )
