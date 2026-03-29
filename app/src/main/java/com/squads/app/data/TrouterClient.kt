@@ -40,6 +40,7 @@ class TrouterClient
         private val api: TeamsApiClient,
         private val networkMonitor: NetworkMonitor,
         private val authManager: AuthManager,
+        private val regionConfig: RegionConfig,
     ) {
         private val isDemoMode: Boolean
             get() = authManager.isDemoMode
@@ -122,7 +123,7 @@ class TrouterClient
         }
 
         private fun connect() {
-            val baseUrl = reconnectUrl ?: "wss://go-eu.trouter.teams.microsoft.com/v4/c"
+            val baseUrl = reconnectUrl ?: regionConfig.trouterDefaultUrl()
             val tc =
                 JSONObject().apply {
                     put("cv", "2026.07.01.1")

@@ -43,9 +43,12 @@ class TeamsApiClient
         private val emojiManager: EmojiManager,
         private val httpClient: OkHttpClient,
         internal val mockRepository: MockRepository,
+        private val regionConfig: RegionConfig,
     ) {
         companion object {
             private const val TAG = "TeamsApiClient"
+            private val CHATSVC_CONTACT_REGEX =
+                Regex("^https://teams\\.microsoft\\.com/api/chatsvc/\\w+/v1/users/ME/contacts/")
         }
 
         internal val isDemoMode: Boolean
@@ -251,7 +254,7 @@ class TeamsApiClient
                 val token = getToken(SCOPE_IC3)
                 val now = System.currentTimeMillis()
                 val horizon = "$now;0;${lastMessageId ?: now}"
-                val base = "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations"
+                val base = "${regionConfig.chatsvcBase()}/conversations"
                 httpPut(
                     url = "$base/$chatId/properties?name=consumptionhorizon",
                     body = JSONObject().put("consumptionhorizon", horizon).toString(),
@@ -285,7 +288,7 @@ class TeamsApiClient
                     put("subscriptionsToRemove", JSONArray())
                 }
             httpPostRaw(
-                url = "https://teams.cloud.microsoft/ups/emea/v1/pubsub/subscriptions/$endpointId",
+                url = regionConfig.upsSubscriptionUrl(endpointId),
                 body = body.toString(),
                 contentType = "application/json",
                 headers =
@@ -344,7 +347,7 @@ class TeamsApiClient
                         async {
                             try {
                                 val url =
-                                    "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations/$chatId/messages?pageSize=5"
+                                    "${regionConfig.chatsvcBase()}/conversations/$chatId/messages?pageSize=5"
                                 val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
                                 val messages = json.optJSONArray("messages") ?: return@async
                                 for (msg in messages.objects()) {
@@ -367,6 +370,34 @@ class TeamsApiClient
 
         // ─── User details (chats + teams) ────────────────────────────
 
+        private suspend fun discoverRegion() {
+            if (regionConfig.isResolved) return
+            try {
+                val token = getToken(SCOPE_CHATSVCAGG)
+                val noRedirectClient = httpClient.newBuilder().followRedirects(false).build()
+                val request =
+                    Request
+                        .Builder()
+                        .url("https://teams.microsoft.com/api/csa/api/v2/teams/users/me")
+                        .header("Authorization", "Bearer $token")
+                        .header("User-Agent", USER_AGENT)
+                        .build()
+                withContext(Dispatchers.IO) {
+                    noRedirectClient.newCall(request).execute().use { response ->
+                        val location = response.header("Location")
+                        if (response.isRedirect && location != null) {
+                            RegionConfig.extractRegionFromUrl(location)?.let { regionConfig.setRegion(it) }
+                        }
+                    }
+                }
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "Region discovery failed", e)
+            }
+            if (!regionConfig.isResolved) regionConfig.setRegion(RegionConfig.DEFAULT)
+        }
+
         /**
          * Fetch user details (teams + chats). Cached for 30s
          * so ChatsViewModel and TeamsViewModel don't duplicate the call.
@@ -376,9 +407,11 @@ class TeamsApiClient
             val now = System.currentTimeMillis()
             cachedUserDetails?.let { if (now - cacheTimestamp < 30_000) return it }
 
+            discoverRegion()
+
             val body =
                 authenticatedGet(
-                    "https://teams.microsoft.com/api/csa/emea/api/v2/teams/users/me",
+                    "${regionConfig.csaBase()}/users/me",
                     SCOPE_CHATSVCAGG,
                 )
             val json = JSONObject(body)
@@ -430,6 +463,7 @@ class TeamsApiClient
             resolvedBotGroups.clear()
             cachedTenantId = null
             _myUserId.value = null
+            regionConfig.clear()
             invalidateCache()
         }
 
@@ -582,7 +616,7 @@ class TeamsApiClient
 
         suspend fun getChatMessages(threadId: String): List<ChatMessage> {
             if (isDemoMode) return mockRepository.getMessages(threadId)
-            val url = "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations/$threadId/messages?pageSize=200"
+            val url = "${regionConfig.chatsvcBase()}/conversations/$threadId/messages?pageSize=200"
             val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
             val messages = json.optJSONArray("messages") ?: return emptyList()
             val myUserId =
@@ -623,7 +657,7 @@ class TeamsApiClient
 
         private fun stripSenderUrl(url: String): String =
             url
-                .removePrefix("https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/contacts/")
+                .replace(CHATSVC_CONTACT_REGEX, "")
                 .removePrefix("https://notifications.skype.net/v1/users/ME/contacts/")
 
         // ─── Teams / channels ────────────────────────────────────────
@@ -633,7 +667,7 @@ class TeamsApiClient
             channelId: String,
         ): List<ChannelMessage> {
             if (isDemoMode) return mockRepository.getChannelMessages(teamId, channelId)
-            val url = "https://teams.microsoft.com/api/csa/emea/api/v2/teams/$teamId/channels/$channelId"
+            val url = "${regionConfig.csaBase()}/$teamId/channels/$channelId"
             val json = JSONObject(authenticatedGet(url, SCOPE_CHATSVCAGG))
             val chains = json.optJSONArray("replyChains") ?: return emptyList()
 
@@ -796,7 +830,7 @@ class TeamsApiClient
                 }
 
             httpPost(
-                url = "https://teams.microsoft.com/api/chatsvc/emea/v1/users/ME/conversations/$conversationId/messages",
+                url = "${regionConfig.chatsvcBase()}/conversations/$conversationId/messages",
                 body = body.toString(),
                 contentType = "application/json",
                 token = token,
@@ -840,7 +874,7 @@ class TeamsApiClient
                     val objectId = key.substring(semiIdx + 1)
                     val imageUrl =
                         cachedTenantId?.let { tid ->
-                            "https://eu-prod.asyncgw.teams.microsoft.com/v1/$tid/objects/$objectId/views/imgt2_anim"
+                            regionConfig.customEmojiUrl(tid, objectId)
                         }
                     Reaction(emoji = name, count = count, imageUrl = imageUrl)
                 } else {
