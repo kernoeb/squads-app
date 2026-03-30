@@ -26,6 +26,10 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
+
+/** Extends CancellationException so in-flight coroutines cancel silently instead of crashing. */
+class SessionExpiredException : CancellationException("Session expired — please log in again")
 
 private const val SCOPE_GRAPH = "https://graph.microsoft.com/.default"
 private const val SCOPE_CHATSVCAGG = "https://chatsvcagg.teams.microsoft.com/.default"
@@ -69,7 +73,7 @@ class TeamsApiClient
 
         private suspend fun getToken(scope: String): String =
             tokenMutex.withLock {
-                if (!active) throw Exception("Logged out")
+                if (!active) throw SessionExpiredException()
 
                 val cached = tokenCache[scope]
                 val now = System.currentTimeMillis() / 1000
@@ -101,12 +105,22 @@ class TeamsApiClient
                 }
 
             val json =
-                httpPost(
-                    url = OAuthConfig.tokenV2Url(),
-                    body = body,
-                    contentType = "application/x-www-form-urlencoded",
-                    headers = mapOf("Origin" to "https://teams.microsoft.com"),
-                )
+                try {
+                    httpPost(
+                        url = OAuthConfig.tokenV2Url(),
+                        body = body,
+                        contentType = "application/x-www-form-urlencoded",
+                        headers = mapOf("Origin" to "https://teams.microsoft.com"),
+                    )
+                } catch (e: Exception) {
+                    if (e.message?.contains("invalid_grant") == true) {
+                        Log.w(TAG, "Refresh token expired or revoked, logging out")
+                        clearAll()
+                        authManager.logout()
+                        throw SessionExpiredException()
+                    }
+                    throw e
+                }
 
             val accessToken = json.getString("access_token")
             val expiresIn = json.optLong("expires_in", 3600)
@@ -390,7 +404,7 @@ class TeamsApiClient
                         }
                     }
                 }
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "Region discovery failed", e)
@@ -891,7 +905,7 @@ class TeamsApiClient
             if (parts.size != 3) return
             try {
                 val payload = String(android.util.Base64.decode(parts[1], android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING))
-                cachedTenantId = JSONObject(payload).optString("tid", null)
+                cachedTenantId = JSONObject(payload).str("tid").takeIf { it.isNotEmpty() }
             } catch (_: Exception) {
             }
         }

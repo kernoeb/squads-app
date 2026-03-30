@@ -161,8 +161,6 @@ class AuthManager
             maxAttempts: Int,
         ): String? {
             repeat(maxAttempts) {
-                delay(intervalSec * 1000L)
-
                 try {
                     val result = exchangeDeviceCode(deviceCode)
                     val refreshToken = result.optString("refresh_token", "")
@@ -173,6 +171,7 @@ class AuthManager
                     // Not yet authorized — keep polling
                     Log.d("AuthManager", "Device code poll: ${e.message}")
                 }
+                delay(intervalSec * 1000L)
             }
             return null
         }
