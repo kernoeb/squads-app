@@ -1,6 +1,7 @@
 package com.squads.app.data
 
 import android.content.Context
+import androidx.core.content.edit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,12 +21,12 @@ class RegionConfig
 
         fun setRegion(value: String) {
             region = value
-            prefs.edit().putString("region", value).apply()
+            prefs.edit { putString("region", value) }
         }
 
         fun clear() {
             region = null
-            prefs.edit().clear().apply()
+            prefs.edit { clear() }
         }
 
         // ─── URL builders ────────────────────────────────────────────

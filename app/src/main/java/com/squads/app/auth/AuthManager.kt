@@ -3,8 +3,9 @@ package com.squads.app.auth
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.net.Uri
 import android.util.Log
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -102,7 +103,7 @@ class AuthManager
 
             // Open browser
             val intent =
-                Intent(Intent.ACTION_VIEW, Uri.parse(state.verificationUrl)).apply {
+                Intent(Intent.ACTION_VIEW, state.verificationUrl.toUri()).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
             activity.startActivity(intent)
@@ -113,11 +114,10 @@ class AuthManager
                 val refreshToken = pollForToken(deviceCode, pendingInterval, maxAttempts = 60)
 
                 if (refreshToken != null) {
-                    prefs
-                        .edit()
-                        .putString("refresh_token", refreshToken)
-                        .putString("user_name", "User")
-                        .apply()
+                    prefs.edit {
+                        putString("refresh_token", refreshToken)
+                        putString("user_name", "User")
+                    }
 
                     _isAuthenticated.value = true
                     _userName.value = "User"
@@ -206,23 +206,22 @@ class AuthManager
 
         /** Mock login for development — simulates a successful auth with demo data. */
         fun mockLogin() {
-            prefs
-                .edit()
-                .putString("refresh_token", MOCK_REFRESH_TOKEN)
-                .putString("user_name", "You")
-                .apply()
+            prefs.edit {
+                putString("refresh_token", MOCK_REFRESH_TOKEN)
+                putString("user_name", "You")
+            }
             _isAuthenticated.value = true
             _userName.value = "You"
             _deviceCodeState.value = DeviceCodeState.Idle
         }
 
         fun updateUserName(name: String) {
-            prefs.edit().putString("user_name", name).apply()
+            prefs.edit { putString("user_name", name) }
             _userName.value = name
         }
 
         fun logout() {
-            prefs.edit().clear().apply()
+            prefs.edit { clear() }
             _isAuthenticated.value = false
             _userName.value = null
             _deviceCodeState.value = DeviceCodeState.Idle

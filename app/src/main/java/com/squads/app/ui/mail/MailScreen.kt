@@ -304,9 +304,9 @@ fun MailDetailScreen(
 @Composable
 private fun MailBodyWebView(
     html: String,
+    modifier: Modifier = Modifier,
     httpClient: OkHttpClient? = null,
     authToken: String? = null,
-    modifier: Modifier = Modifier,
 ) {
     val textColor = MaterialTheme.colorScheme.onBackground
     val bgColor = MaterialTheme.colorScheme.background

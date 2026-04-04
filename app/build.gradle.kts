@@ -135,6 +135,7 @@ dependencies {
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     // Splash screen
+    implementation("androidx.core:core-ktx:1.18.0")
     implementation("androidx.core:core-splashscreen:1.2.0")
 
     // Testing

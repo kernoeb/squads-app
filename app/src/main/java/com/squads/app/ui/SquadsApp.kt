@@ -124,6 +124,7 @@ private fun MainApp(authViewModel: AuthViewModel) {
         }
     }
 
+    @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
