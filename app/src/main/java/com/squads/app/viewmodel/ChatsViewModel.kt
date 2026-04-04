@@ -274,7 +274,7 @@ class ChatsViewModel
                         server.firstOrNull { s ->
                             s.isFromMe &&
                                 s.id !in matched &&
-                                Duration.between(local.timestamp, s.timestamp).abs().toSeconds() < ECHO_MATCH_WINDOW_SECONDS &&
+                                Duration.between(local.timestamp, s.timestamp).abs().seconds < ECHO_MATCH_WINDOW_SECONDS &&
                                 s.content == local.content
                         }
                     if (echo != null) matched.add(echo.id)
