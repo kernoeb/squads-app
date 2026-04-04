@@ -22,6 +22,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -39,6 +40,7 @@ import com.squads.app.ui.calendar.CalendarScreen
 import com.squads.app.ui.chats.ChatDetailScreen
 import com.squads.app.ui.chats.ChatsScreen
 import com.squads.app.ui.components.LoadingScreen
+import com.squads.app.ui.components.LocalIsOnline
 import com.squads.app.ui.mail.MailDetailScreen
 import com.squads.app.ui.mail.MailScreen
 import com.squads.app.ui.navigation.ChatDetail
@@ -116,6 +118,7 @@ private fun MainApp(authViewModel: AuthViewModel) {
     val navigator = remember { Navigator(navigationState) }
     val view = LocalView.current
     val hazeState = remember { HazeState() }
+    val isOnline by authViewModel.isOnline.collectAsState()
 
     val showBottomBar by remember {
         derivedStateOf {
@@ -125,142 +128,144 @@ private fun MainApp(authViewModel: AuthViewModel) {
     }
 
     @Suppress("UnusedMaterial3ScaffoldPaddingParameter")
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        bottomBar = {
-            if (showBottomBar) {
-                val hazeStyle = CupertinoMaterials.regular()
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    modifier =
-                        Modifier.hazeEffect(
-                            state = hazeState,
-                            style = hazeStyle,
-                        ),
-                ) {
-                    bottomNavItems.forEach { item ->
-                        NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) },
-                            selected = item.route == navigationState.topLevelRoute,
-                            onClick = {
-                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                navigator.navigate(item.route)
-                            },
-                            colors =
-                                NavigationBarItemDefaults.colors(
-                                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
-                                ),
-                        )
-                    }
-                }
-            }
-        },
-    ) { _ ->
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .hazeSource(state = hazeState),
-        ) {
-            val provider =
-                entryProvider {
-                    entry<ChatsList>(
-                        clazzContentKey = { CHATS_CONTENT_KEY },
+    CompositionLocalProvider(LocalIsOnline provides isOnline) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            bottomBar = {
+                if (showBottomBar) {
+                    val hazeStyle = CupertinoMaterials.regular()
+                    NavigationBar(
+                        containerColor = Color.Transparent,
+                        modifier =
+                            Modifier.hazeEffect(
+                                state = hazeState,
+                                style = hazeStyle,
+                            ),
                     ) {
-                        val chatsViewModel: ChatsViewModel = hiltViewModel()
-                        ChatsScreen(
-                            viewModel = chatsViewModel,
-                            onChatClick = { chat ->
-                                navigator.navigate(ChatDetail(chatId = chat.id))
-                            },
-                            onProfileClick = {
-                                navigator.navigate(Profile)
-                            },
-                        )
-                    }
-
-                    entry<ChatDetail>(
-                        metadata = parentMetadata(CHATS_CONTENT_KEY),
-                    ) {
-                        Surface(modifier = Modifier.fillMaxSize()) {
-                            val chatsViewModel: ChatsViewModel = hiltViewModel()
-                            ChatDetailScreen(
-                                viewModel = chatsViewModel,
-                                onBack = {
-                                    chatsViewModel.stopMessagePolling()
-                                    navigator.goBack()
+                        bottomNavItems.forEach { item ->
+                            NavigationBarItem(
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = { Text(item.label) },
+                                selected = item.route == navigationState.topLevelRoute,
+                                onClick = {
+                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                    navigator.navigate(item.route)
                                 },
+                                colors =
+                                    NavigationBarItemDefaults.colors(
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f),
+                                    ),
                             )
                         }
                     }
-
-                    entry<MailList>(
-                        clazzContentKey = { MAIL_CONTENT_KEY },
-                    ) {
-                        val mailViewModel: MailViewModel = hiltViewModel()
-                        MailScreen(
-                            viewModel = mailViewModel,
-                            onMailClick = {
-                                navigator.navigate(MailDetail(mailId = "selected"))
-                            },
-                        )
-                    }
-
-                    entry<MailDetail>(
-                        metadata = parentMetadata(MAIL_CONTENT_KEY),
-                    ) {
-                        val mailViewModel: MailViewModel = hiltViewModel()
-                        val goBack = {
-                            navigator.goBack()
-                            mailViewModel.clearSelection()
+                }
+            },
+        ) { _ ->
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .hazeSource(state = hazeState),
+            ) {
+                val provider =
+                    entryProvider {
+                        entry<ChatsList>(
+                            clazzContentKey = { CHATS_CONTENT_KEY },
+                        ) {
+                            val chatsViewModel: ChatsViewModel = hiltViewModel()
+                            ChatsScreen(
+                                viewModel = chatsViewModel,
+                                onChatClick = { chat ->
+                                    navigator.navigate(ChatDetail(chatId = chat.id))
+                                },
+                                onProfileClick = {
+                                    navigator.navigate(Profile)
+                                },
+                            )
                         }
-                        BackHandler(onBack = goBack)
-                        Surface(modifier = Modifier.fillMaxSize()) {
-                            val selectedMail by mailViewModel.selectedMail.collectAsState()
-                            val isDetailLoading by mailViewModel.isDetailLoading.collectAsState()
-                            val authToken by mailViewModel.authToken.collectAsState()
-                            if (selectedMail != null) {
-                                MailDetailScreen(
-                                    mail = selectedMail!!,
-                                    onBack = goBack,
-                                    isBodyLoading = isDetailLoading,
-                                    httpClient = mailViewModel.okHttpClient,
-                                    authToken = authToken,
+
+                        entry<ChatDetail>(
+                            metadata = parentMetadata(CHATS_CONTENT_KEY),
+                        ) {
+                            Surface(modifier = Modifier.fillMaxSize()) {
+                                val chatsViewModel: ChatsViewModel = hiltViewModel()
+                                ChatDetailScreen(
+                                    viewModel = chatsViewModel,
+                                    onBack = {
+                                        chatsViewModel.stopMessagePolling()
+                                        navigator.goBack()
+                                    },
                                 )
-                            } else {
-                                LoadingScreen()
+                            }
+                        }
+
+                        entry<MailList>(
+                            clazzContentKey = { MAIL_CONTENT_KEY },
+                        ) {
+                            val mailViewModel: MailViewModel = hiltViewModel()
+                            MailScreen(
+                                viewModel = mailViewModel,
+                                onMailClick = {
+                                    navigator.navigate(MailDetail(mailId = "selected"))
+                                },
+                            )
+                        }
+
+                        entry<MailDetail>(
+                            metadata = parentMetadata(MAIL_CONTENT_KEY),
+                        ) {
+                            val mailViewModel: MailViewModel = hiltViewModel()
+                            val goBack = {
+                                navigator.goBack()
+                                mailViewModel.clearSelection()
+                            }
+                            BackHandler(onBack = goBack)
+                            Surface(modifier = Modifier.fillMaxSize()) {
+                                val selectedMail by mailViewModel.selectedMail.collectAsState()
+                                val isDetailLoading by mailViewModel.isDetailLoading.collectAsState()
+                                val authToken by mailViewModel.authToken.collectAsState()
+                                if (selectedMail != null) {
+                                    MailDetailScreen(
+                                        mail = selectedMail!!,
+                                        onBack = goBack,
+                                        isBodyLoading = isDetailLoading,
+                                        httpClient = mailViewModel.okHttpClient,
+                                        authToken = authToken,
+                                    )
+                                } else {
+                                    LoadingScreen()
+                                }
+                            }
+                        }
+
+                        entry<CalendarRoute> { CalendarScreen() }
+                        entry<TeamsRoute> { TeamsScreen() }
+                        entry<SearchRoute> { SearchScreen() }
+
+                        entry<Profile> {
+                            Surface(modifier = Modifier.fillMaxSize()) {
+                                ProfileScreen(
+                                    authViewModel = authViewModel,
+                                    onBack = { navigator.goBack() },
+                                )
                             }
                         }
                     }
 
-                    entry<CalendarRoute> { CalendarScreen() }
-                    entry<TeamsRoute> { TeamsScreen() }
-                    entry<SearchRoute> { SearchScreen() }
-
-                    entry<Profile> {
-                        Surface(modifier = Modifier.fillMaxSize()) {
-                            ProfileScreen(
-                                authViewModel = authViewModel,
-                                onBack = { navigator.goBack() },
-                            )
-                        }
-                    }
-                }
-
-            NavDisplay(
-                entries = navigationState.toDecoratedEntries(provider),
-                onBack = { navigator.goBack() },
-                popTransitionSpec = {
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
-                },
-                predictivePopTransitionSpec = { _ ->
-                    slideInHorizontally(initialOffsetX = { -it }) togetherWith
-                        slideOutHorizontally(targetOffsetX = { it })
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
+                NavDisplay(
+                    entries = navigationState.toDecoratedEntries(provider),
+                    onBack = { navigator.goBack() },
+                    popTransitionSpec = {
+                        slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                            slideOutHorizontally(targetOffsetX = { it })
+                    },
+                    predictivePopTransitionSpec = { _ ->
+                        slideInHorizontally(initialOffsetX = { -it }) togetherWith
+                            slideOutHorizontally(targetOffsetX = { it })
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
     }
 }

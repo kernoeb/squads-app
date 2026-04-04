@@ -11,6 +11,7 @@ import com.squads.app.data.repository.MailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -80,13 +81,15 @@ class MailViewModel
         private fun loadFolders() {
             viewModelScope.launch {
                 try {
-                    val foldersDeferred = async { mailRepository.getMailFolders() }
-                    val inboxIdDeferred = async { mailRepository.getInboxFolderId() }
-                    val folders = foldersDeferred.await()
-                    val inboxId = inboxIdDeferred.await()
-                    _folders.value = folders
-                    if (_currentFolderId.value == null && folders.isNotEmpty()) {
-                        _currentFolderId.value = inboxId ?: folders.first().id
+                    coroutineScope {
+                        val foldersDeferred = async { mailRepository.getMailFolders() }
+                        val inboxIdDeferred = async { mailRepository.getInboxFolderId() }
+                        val folders = foldersDeferred.await()
+                        val inboxId = inboxIdDeferred.await()
+                        _folders.value = folders
+                        if (_currentFolderId.value == null && folders.isNotEmpty()) {
+                            _currentFolderId.value = inboxId ?: folders.first().id
+                        }
                     }
                     refreshMail(forceRefresh = true)
                 } catch (e: Exception) {
@@ -131,17 +134,19 @@ class MailViewModel
             _isDetailLoading.value = true
             viewModelScope.launch {
                 try {
-                    val detailDeferred = async { mailApi.getMailDetail(mail.id) }
-                    val tokenDeferred =
-                        async {
-                            try {
-                                mailApi.getGraphToken()
-                            } catch (_: Exception) {
-                                null
+                    coroutineScope {
+                        val detailDeferred = async { mailApi.getMailDetail(mail.id) }
+                        val tokenDeferred =
+                            async {
+                                try {
+                                    mailApi.getGraphToken()
+                                } catch (_: Exception) {
+                                    null
+                                }
                             }
-                        }
-                    _selectedMail.value = detailDeferred.await()
-                    _authToken.value = tokenDeferred.await()
+                        _selectedMail.value = detailDeferred.await()
+                        _authToken.value = tokenDeferred.await()
+                    }
                 } catch (e: Exception) {
                     Log.w("MailViewModel", "Failed to load mail detail", e)
                 } finally {
