@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import com.squads.app.data.ChatMessage
 import com.squads.app.data.graphProfilePhotoUrl
 import com.squads.app.ui.components.ChatAvatar
+import com.squads.app.ui.components.EmptyScreen
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.viewmodel.ChatsViewModel
 import dev.chrisbanes.haze.HazeState
@@ -167,27 +168,11 @@ fun ChatDetailScreen(
             if (messagesLoading && messages.isEmpty()) {
                 LoadingScreen(Modifier.weight(1f))
             } else if (messages.isEmpty()) {
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            "No messages yet",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Start the conversation!",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        )
-                    }
-                }
+                EmptyScreen(
+                    title = "No messages yet",
+                    subtitle = "Start the conversation!",
+                    modifier = Modifier.weight(1f),
+                )
             } else {
                 val reversedMessages = remember(messages) { messages.reversed() }
 

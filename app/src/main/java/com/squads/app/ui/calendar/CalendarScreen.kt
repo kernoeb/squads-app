@@ -22,12 +22,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -47,6 +51,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.squads.app.data.CalendarEvent
 import com.squads.app.data.toTimeString
+import com.squads.app.ui.components.EmptyScreen
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.ui.components.ScreenHeader
 import com.squads.app.ui.theme.BottomNavHeight
@@ -60,16 +65,12 @@ private val DAY_HEADER_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPatter
 fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
     val events by viewModel.events.collectAsState()
     val showWeek by viewModel.showWeek.collectAsState()
+    val weekOffset by viewModel.weekOffset.collectAsState()
     val selectedEvent by viewModel.selectedEvent.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
     LifecycleEventEffect(Lifecycle.Event.ON_START) {
         viewModel.onAppResumed()
-    }
-
-    if (isLoading && events.isEmpty()) {
-        LoadingScreen()
-        return
     }
 
     Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
@@ -88,11 +89,46 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
             }
         }
 
-        if (isLoading) {
-            LoadingScreen()
+        if (showWeek) {
+            val weekStart by viewModel.weekStartDate.collectAsState()
+            val weekLabel =
+                remember(weekStart) {
+                    val formatter = DateTimeFormatter.ofPattern("MMM d")
+                    "${weekStart.format(formatter)} - ${weekStart.plusDays(6).format(formatter)}"
+                }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { viewModel.previousWeek() }) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous week")
+                }
+                Text(
+                    weekLabel,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Medium,
+                )
+                IconButton(onClick = { viewModel.nextWeek() }) {
+                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next week")
+                }
+            }
+        }
+
+        val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val bottomPadding = BottomNavHeight + systemNavInset
+
+        if (isLoading && events.isEmpty()) {
+            LoadingScreen(Modifier.weight(1f).padding(bottom = bottomPadding))
+        } else if (events.isEmpty()) {
+            EmptyScreen(
+                title = if (showWeek) "No events this week" else "No events today",
+                subtitle = "Your schedule is clear!",
+                icon = Icons.Default.CalendarMonth,
+                modifier = Modifier.weight(1f).padding(bottom = bottomPadding),
+            )
         } else {
             val grouped = remember(events) { events.groupBy { it.startTime.toLocalDate() } }
-            val systemNavInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = BottomNavHeight + systemNavInset),
