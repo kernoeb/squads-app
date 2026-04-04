@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.squads.app.data.CalendarEvent
 import com.squads.app.data.toTimeString
 import com.squads.app.ui.components.LoadingScreen
@@ -60,6 +62,10 @@ fun CalendarScreen(viewModel: CalendarViewModel = hiltViewModel()) {
     val showWeek by viewModel.showWeek.collectAsState()
     val selectedEvent by viewModel.selectedEvent.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        viewModel.onAppResumed()
+    }
 
     if (isLoading && events.isEmpty()) {
         LoadingScreen()

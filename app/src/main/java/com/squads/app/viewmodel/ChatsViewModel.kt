@@ -70,6 +70,7 @@ class ChatsViewModel
         private var chatRefreshJob: Job? = null
         private var messageRefreshJob: Job? = null
         private var presenceJob: Job? = null
+        private var lastResumeTime = 0L
 
         init {
             api.invalidateCache()
@@ -102,6 +103,7 @@ class ChatsViewModel
             _error.value = null
             _presenceMap.value = emptyMap()
             myDisplayName = null
+            lastResumeTime = 0L
             api.invalidateCache()
             refreshChats()
             startChatPolling()
@@ -330,6 +332,32 @@ class ChatsViewModel
                     Log.w(TAG, "Presence fetch failed", e)
                 }
             }
+        }
+
+        fun onAppResumed() {
+            val now = System.currentTimeMillis()
+            if (now - lastResumeTime < 5_000) return
+            lastResumeTime = now
+            chatRefreshJob?.cancel()
+            chatRefreshJob =
+                viewModelScope.launch {
+                    try {
+                        chatRepository.refreshChats()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Resume refresh failed", e)
+                    }
+                }
+            val chatId = _selectedChat.value?.id ?: return
+            messageRefreshJob?.cancel()
+            messageRefreshJob =
+                viewModelScope.launch {
+                    try {
+                        val fresh = chatRepository.refreshMessages(chatId)
+                        _messages.value = mergeWithOptimistic(fresh)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Resume message refresh failed", e)
+                    }
+                }
         }
 
         fun stopMessagePolling() {

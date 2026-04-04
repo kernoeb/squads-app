@@ -95,6 +95,12 @@ class MailViewModel
             }
         }
 
+        fun onAppResumed() {
+            val now = System.currentTimeMillis()
+            if (now - lastLoadTime < 5_000) return
+            refreshMail(forceRefresh = true)
+        }
+
         fun switchFolder(folderId: String) {
             if (_currentFolderId.value == folderId) return
             _currentFolderId.value = folderId

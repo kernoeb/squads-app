@@ -48,6 +48,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.squads.app.data.Channel
 import com.squads.app.data.ChannelMessage
 import com.squads.app.data.Team
@@ -69,6 +71,10 @@ fun TeamsScreen(viewModel: TeamsViewModel = hiltViewModel()) {
     val channelMessages by viewModel.channelMessages.collectAsState()
     val selectedChannelName by viewModel.selectedChannelName.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        viewModel.onAppResumed()
+    }
 
     if (isLoading && teams.isEmpty() && selectedTeam == null) {
         LoadingScreen()

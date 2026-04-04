@@ -48,6 +48,12 @@ class CalendarViewModel
             }
         }
 
+        fun onAppResumed() {
+            val now = System.currentTimeMillis()
+            if (now - lastLoadTime < 5_000) return
+            loadEvents(forceRefresh = true)
+        }
+
         fun loadEvents(forceRefresh: Boolean = false) {
             val now = System.currentTimeMillis()
             val showWeekNow = _showWeek.value

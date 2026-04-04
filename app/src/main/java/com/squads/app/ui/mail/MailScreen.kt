@@ -50,6 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.squads.app.data.MailFolder
 import com.squads.app.data.MailImportance
 import com.squads.app.data.MailMessage
@@ -73,6 +75,10 @@ fun MailScreen(
     val folders by viewModel.folders.collectAsState()
     val currentFolderId by viewModel.currentFolderId.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        viewModel.onAppResumed()
+    }
 
     if (isLoading && messages.isEmpty() && folders.isEmpty()) {
         LoadingScreen()

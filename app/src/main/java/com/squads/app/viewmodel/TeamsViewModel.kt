@@ -55,6 +55,12 @@ class TeamsViewModel
             }
         }
 
+        fun onAppResumed() {
+            val now = System.currentTimeMillis()
+            if (now - lastLoadTime < 5_000) return
+            loadTeams(forceRefresh = true)
+        }
+
         fun loadTeams(forceRefresh: Boolean = false) {
             val now = System.currentTimeMillis()
             if (!forceRefresh && _teams.value.isNotEmpty() && now - lastLoadTime < 120_000) return

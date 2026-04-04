@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.squads.app.data.ChatConversation
 import com.squads.app.data.PresenceAvailability
 import com.squads.app.data.toRelativeTime
@@ -52,6 +54,10 @@ fun ChatsScreen(
     val chats by viewModel.chats.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val presenceMap by viewModel.presenceMap.collectAsState()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_START) {
+        viewModel.onAppResumed()
+    }
 
     if (isLoading && chats.isEmpty()) {
         LoadingScreen()
