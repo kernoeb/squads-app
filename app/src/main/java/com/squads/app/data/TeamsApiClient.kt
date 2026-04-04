@@ -202,10 +202,14 @@ class TeamsApiClient
 
         /** Public token accessor for Coil auth interceptor. */
         suspend fun getTokenForUrl(url: String): String? =
-            when {
-                "graph.microsoft.com" in url -> getToken(SCOPE_GRAPH)
-                "teams.microsoft.com" in url || "asm.skype.com" in url -> getToken(SCOPE_IC3)
-                else -> null
+            if (isDemoMode) {
+                null
+            } else {
+                when {
+                    "graph.microsoft.com" in url -> getToken(SCOPE_GRAPH)
+                    "teams.microsoft.com" in url || "asm.skype.com" in url -> getToken(SCOPE_IC3)
+                    else -> null
+                }
             }
 
         // ─── User / profile ──────────────────────────────────────────
