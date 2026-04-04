@@ -71,6 +71,9 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.launch
+import java.time.Duration
+
+private const val MESSAGE_GROUP_GAP_MINUTES = 5L
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
 @Composable
@@ -205,10 +208,17 @@ fun ChatDetailScreen(
                             val msgDate = msg.timestamp.toLocalDate()
                             val prevMsgDate = prevMsg?.timestamp?.toLocalDate()
 
+                            val sameSender =
+                                if (msg.isFromMe || prevMsg?.isFromMe == true) {
+                                    msg.isFromMe == prevMsg?.isFromMe
+                                } else {
+                                    msg.senderId == prevMsg?.senderId
+                                }
+                            val tooFarApart =
+                                prevMsg != null &&
+                                    Duration.between(msg.timestamp, prevMsg.timestamp).abs().toMinutes() >= MESSAGE_GROUP_GAP_MINUTES
                             val isFirstInGroup =
-                                prevMsg == null ||
-                                    prevMsg.senderId != msg.senderId ||
-                                    prevMsgDate != msgDate
+                                prevMsg == null || !sameSender || prevMsgDate != msgDate || tooFarApart
 
                             item(key = msg.id, contentType = "message") {
                                 SwipeToReply(onReply = { replyingTo = msg }) {

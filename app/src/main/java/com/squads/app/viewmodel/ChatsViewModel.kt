@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.Duration
 import javax.inject.Inject
 
 @HiltViewModel
@@ -39,6 +40,7 @@ class ChatsViewModel
 
         companion object {
             private const val TAG = "ChatsViewModel"
+            private const val ECHO_MATCH_WINDOW_SECONDS = 5L
         }
 
         val chats: StateFlow<List<ChatConversation>> = _chats
@@ -268,7 +270,10 @@ class ChatsViewModel
                 pending.filter { local ->
                     val echo =
                         server.firstOrNull { s ->
-                            s.isFromMe && s.content == local.content && s.id !in matched
+                            s.isFromMe &&
+                                s.id !in matched &&
+                                Duration.between(local.timestamp, s.timestamp).abs().toSeconds() < ECHO_MATCH_WINDOW_SECONDS &&
+                                s.content == local.content
                         }
                     if (echo != null) matched.add(echo.id)
                     echo == null

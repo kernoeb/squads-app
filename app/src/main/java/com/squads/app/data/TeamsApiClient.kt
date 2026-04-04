@@ -361,7 +361,7 @@ class TeamsApiClient
                         async {
                             try {
                                 val url =
-                                    "${regionConfig.chatsvcBase()}/conversations/$chatId/messages?pageSize=5"
+                                    "${regionConfig.chatsvcBase()}/conversations/$chatId/messages?pageSize=20"
                                 val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
                                 val messages = json.optJSONArray("messages") ?: return@async
                                 for (msg in messages.objects()) {
