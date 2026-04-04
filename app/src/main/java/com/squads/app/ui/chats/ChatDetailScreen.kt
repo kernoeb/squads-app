@@ -202,11 +202,13 @@ fun ChatDetailScreen(
 
                         reversedMessages.forEachIndexed { index, msg ->
                             val prevMsg = reversedMessages.getOrNull(index + 1)
+                            val msgDate = msg.timestamp.toLocalDate()
+                            val prevMsgDate = prevMsg?.timestamp?.toLocalDate()
 
                             val isFirstInGroup =
                                 prevMsg == null ||
                                     prevMsg.senderId != msg.senderId ||
-                                    prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()
+                                    prevMsgDate != msgDate
 
                             item(key = msg.id, contentType = "message") {
                                 SwipeToReply(onReply = { replyingTo = msg }) {
@@ -219,15 +221,9 @@ fun ChatDetailScreen(
                                 }
                             }
 
-                            if (prevMsg != null && prevMsg.timestamp.toLocalDate() != msg.timestamp.toLocalDate()) {
-                                item(key = "date-${msg.timestamp.toLocalDate()}", contentType = "dateSeparator") {
-                                    DateSeparator(msg.timestamp.toLocalDate())
-                                }
-                            }
-
-                            if (prevMsg == null) {
-                                item(key = "date-first-${msg.timestamp.toLocalDate()}", contentType = "dateSeparator") {
-                                    DateSeparator(msg.timestamp.toLocalDate())
+                            if (prevMsgDate != msgDate) {
+                                item(key = "date-$msgDate", contentType = "dateSeparator") {
+                                    DateSeparator(msgDate)
                                 }
                             }
                         }

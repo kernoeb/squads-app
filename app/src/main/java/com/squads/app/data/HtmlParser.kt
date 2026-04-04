@@ -18,6 +18,16 @@ data class ParsedMessage(
     val replyToPreview: String? = null,
 )
 
+sealed interface ContentBlock {
+    data class Text(
+        val html: String,
+    ) : ContentBlock
+
+    data class Image(
+        val url: String,
+    ) : ContentBlock
+}
+
 object HtmlParser {
     fun parseMessage(html: String): ParsedMessage {
         if (html.isBlank()) return ParsedMessage("", emptyList())
@@ -53,14 +63,56 @@ object HtmlParser {
         return ParsedMessage(text, imageUrls, replyToName, replyToPreview)
     }
 
-    fun cleanForRendering(html: String): String {
-        if (html.isBlank()) return ""
+    fun parseContentBlocks(
+        html: String,
+        extraImageUrls: List<String> = emptyList(),
+    ): List<ContentBlock> {
+        if (html.isBlank()) return emptyList()
         val doc = Jsoup.parse(html)
         resolveEmojis(doc)
-        doc.select("img").remove()
-        // Remove blockquotes — rendered separately by Compose
         doc.select("blockquote").remove()
-        return doc.body().html()
+
+        val blocks = mutableListOf<ContentBlock>()
+        val htmlImages = mutableSetOf<String>()
+        val body = doc.body()
+        val currentHtml = StringBuilder()
+
+        fun flushText() {
+            val text = currentHtml.toString().trim()
+            if (text.isNotEmpty()) {
+                blocks.add(ContentBlock.Text(text))
+            }
+            currentHtml.clear()
+        }
+
+        for (child in body.children()) {
+            val imgs = child.select("img[src]").filter { !isEmojiImage(it.attr("src"), it) }
+
+            if (imgs.isNotEmpty()) {
+                imgs.forEach { it.remove() }
+                val textPart = child.html().trim()
+                if (textPart.isNotEmpty()) {
+                    currentHtml.append(textPart)
+                }
+                flushText()
+                for (img in imgs) {
+                    val url = img.attr("src")
+                    blocks.add(ContentBlock.Image(url))
+                    htmlImages.add(url)
+                }
+            } else {
+                currentHtml.append(child.outerHtml())
+            }
+        }
+        flushText()
+
+        for (url in extraImageUrls) {
+            if (url !in htmlImages) {
+                blocks.add(ContentBlock.Image(url))
+            }
+        }
+
+        return blocks
     }
 
     private fun resolveEmojis(doc: Document) {

@@ -1,5 +1,6 @@
 package com.squads.app.data
 
+import com.squads.app.data.ContentBlock
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -68,17 +69,69 @@ class HtmlParserTest {
     }
 
     @Test
-    fun `cleanForRendering removes images and blockquotes`() {
-        val html = """<blockquote>reply</blockquote><p>Text</p><img src="https://x.com/i.jpg">"""
-        val result = HtmlParser.cleanForRendering(html)
-        assertTrue("Text" in result)
-        assertTrue("blockquote" !in result)
-        assertTrue("img" !in result)
+    fun `parseContentBlocks separates text and images`() {
+        val html =
+            """<blockquote>reply</blockquote><p>Text</p>""" +
+                """<p><img src="https://x.com/i.jpg" itemtype="http://schema.skype.com/AMSImage"></p>"""
+        val blocks = HtmlParser.parseContentBlocks(html)
+        assertTrue(blocks.any { it is ContentBlock.Text && "Text" in it.html })
+        assertTrue(blocks.any { it is ContentBlock.Image && it.url == "https://x.com/i.jpg" })
+        assertTrue(blocks.none { it is ContentBlock.Text && "blockquote" in it.html })
     }
 
     @Test
-    fun `cleanForRendering with blank html returns empty`() {
-        assertEquals("", HtmlParser.cleanForRendering(""))
+    fun `parseContentBlocks with blank html returns empty`() {
+        assertEquals(emptyList<ContentBlock>(), HtmlParser.parseContentBlocks(""))
+    }
+
+    @Test
+    fun `parseContentBlocks preserves interleaved text and images`() {
+        val html =
+            """
+            <p>First paragraph</p>
+            <p><img src="https://example.com/img1.png" itemtype="http://schema.skype.com/AMSImage"></p>
+            <p>Second paragraph</p>
+            <p><img src="https://example.com/img2.png" itemtype="http://schema.skype.com/AMSImage"></p>
+            """.trimIndent()
+        val blocks = HtmlParser.parseContentBlocks(html)
+        assertEquals(4, blocks.size)
+        assertTrue(blocks[0] is ContentBlock.Text && "First" in (blocks[0] as ContentBlock.Text).html)
+        assertTrue(blocks[1] is ContentBlock.Image && (blocks[1] as ContentBlock.Image).url.contains("img1"))
+        assertTrue(blocks[2] is ContentBlock.Text && "Second" in (blocks[2] as ContentBlock.Text).html)
+        assertTrue(blocks[3] is ContentBlock.Image && (blocks[3] as ContentBlock.Image).url.contains("img2"))
+    }
+
+    @Test
+    fun `parseContentBlocks appends extra image urls not in html`() {
+        val html = """<p>Some text</p>"""
+        val extra = listOf("https://example.com/attachment.png")
+        val blocks = HtmlParser.parseContentBlocks(html, extra)
+        assertEquals(2, blocks.size)
+        assertTrue(blocks[0] is ContentBlock.Text)
+        assertEquals("https://example.com/attachment.png", (blocks[1] as ContentBlock.Image).url)
+    }
+
+    @Test
+    fun `parseContentBlocks does not duplicate extra images already in html`() {
+        val url = "https://example.com/photo.jpg"
+        val html = """<p><img src="$url" itemtype="http://schema.skype.com/AMSImage"></p>"""
+        val blocks = HtmlParser.parseContentBlocks(html, listOf(url))
+        assertEquals(1, blocks.size)
+        assertTrue(blocks[0] is ContentBlock.Image)
+    }
+
+    @Test
+    fun `parseContentBlocks keeps emoji as text and extracts real images`() {
+        val html =
+            """
+            <p>Hello <img src="https://statics.teams.cdn.office.net/emoticons/smile.png" alt="😊" itemtype="http://schema.skype.com/Emoji"></p>
+            <p><img src="https://example.com/photo.jpg" itemtype="http://schema.skype.com/AMSImage"></p>
+            """.trimIndent()
+        val blocks = HtmlParser.parseContentBlocks(html)
+        assertEquals(2, blocks.size)
+        val textBlock = blocks[0] as ContentBlock.Text
+        assertTrue("😊" in textBlock.html || "Hello" in textBlock.html)
+        assertEquals("https://example.com/photo.jpg", (blocks[1] as ContentBlock.Image).url)
     }
 
     @Test

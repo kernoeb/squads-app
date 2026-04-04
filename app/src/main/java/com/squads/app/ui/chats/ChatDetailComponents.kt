@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import coil3.compose.AsyncImage
 import com.squads.app.data.ChatMessage
+import com.squads.app.data.ContentBlock
+import com.squads.app.data.HtmlParser
 import com.squads.app.data.toTimeString
 import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.ReactionChip
@@ -320,53 +322,65 @@ fun MessageRow(
                 }
             }
 
-            msg.imageUrls.forEach { url ->
-                AsyncImage(
-                    model = url,
-                    contentDescription = "Image",
-                    modifier =
-                        Modifier
-                            .widthIn(max = 350.dp)
-                            .padding(vertical = 4.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onImageClick(url) },
-                    contentScale = ContentScale.FillWidth,
-                )
-            }
-
-            if (msg.content.isNotBlank()) {
-                val rawHtml = msg.contentHtml.ifEmpty { msg.content }
-                if (rawHtml.contains('<') && rawHtml.contains('>')) {
-                    val cleanedHtml =
-                        remember(rawHtml) {
-                            com.squads.app.data.HtmlParser
-                                .cleanForRendering(rawHtml)
+            val contentBlocks =
+                remember(msg.contentHtml, msg.imageUrls) {
+                    val rawHtml = msg.contentHtml.ifEmpty { msg.content }
+                    if (rawHtml.contains('<') && rawHtml.contains('>')) {
+                        HtmlParser.parseContentBlocks(rawHtml, msg.imageUrls)
+                    } else if (msg.content.isNotBlank() || msg.imageUrls.isNotEmpty()) {
+                        buildList {
+                            if (msg.content.isNotBlank()) add(ContentBlock.Text(msg.content))
+                            msg.imageUrls.forEach { add(ContentBlock.Image(it)) }
                         }
-                    AndroidView(
-                        factory = { ctx ->
-                            TextView(ctx).apply {
-                                setTextColor(textColorArgb)
-                                setLinkTextColor(linkColorArgb)
-                                textSize = 15f
-                                movementMethod = LinkMovementMethod.getInstance()
-                            }
-                        },
-                        update = { textView ->
-                            val spanned = Html.fromHtml(cleanedHtml, Html.FROM_HTML_MODE_COMPACT)
-                            textView.text =
-                                spanned.toString().trimEnd().let { trimmed ->
-                                    spanned.subSequence(0, trimmed.length)
-                                }
-                            textView.setTextColor(textColorArgb)
-                            textView.setLinkTextColor(linkColorArgb)
-                        },
-                    )
-                } else {
-                    Text(
-                        msg.content,
-                        color = textColor,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    } else {
+                        emptyList()
+                    }
+                }
+
+            contentBlocks.forEach { block ->
+                when (block) {
+                    is ContentBlock.Image -> {
+                        AsyncImage(
+                            model = block.url,
+                            contentDescription = "Image",
+                            modifier =
+                                Modifier
+                                    .widthIn(max = 350.dp)
+                                    .padding(vertical = 4.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onImageClick(block.url) },
+                            contentScale = ContentScale.FillWidth,
+                        )
+                    }
+                    is ContentBlock.Text -> {
+                        if (block.html.contains('<') && block.html.contains('>')) {
+                            AndroidView(
+                                factory = { ctx ->
+                                    TextView(ctx).apply {
+                                        setTextColor(textColorArgb)
+                                        setLinkTextColor(linkColorArgb)
+                                        textSize = 15f
+                                        movementMethod = LinkMovementMethod.getInstance()
+                                    }
+                                },
+                                update = { textView ->
+                                    val spanned = Html.fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT)
+                                    textView.text =
+                                        spanned.toString().trimEnd().let { trimmed ->
+                                            spanned.subSequence(0, trimmed.length)
+                                        }
+                                    textView.setTextColor(textColorArgb)
+                                    textView.setLinkTextColor(linkColorArgb)
+                                },
+                            )
+                        } else {
+                            Text(
+                                block.html,
+                                color = textColor,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
                 }
             }
 

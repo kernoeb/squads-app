@@ -647,7 +647,9 @@ class TeamsApiClient
                 .mapNotNull { m ->
                     val rawHtml = m.str("content")
                     val parsed = HtmlParser.parseMessage(rawHtml)
-                    if (parsed.text.isBlank() && parsed.imageUrls.isEmpty()) return@mapNotNull null
+                    val fileImageUrls = parseFileAttachmentImages(m.optJSONObject("properties"))
+                    val allImageUrls = parsed.imageUrls + fileImageUrls
+                    if (parsed.text.isBlank() && allImageUrls.isEmpty()) return@mapNotNull null
 
                     val senderMri = stripSenderUrl(m.str("from"))
                     val senderObjId = senderMri.mriToObjectId()
@@ -662,11 +664,11 @@ class TeamsApiClient
                         timestamp = parseTimestamp(m.str("composetime").ifEmpty { m.str("originalarrivaltime") }),
                         isFromMe = senderObjId == myUserId,
                         reactions = parseReactions(m.optJSONObject("properties")?.optJSONArray("emotions")),
-                        imageUrls = parsed.imageUrls,
+                        imageUrls = allImageUrls,
                         replyToName = parsed.replyToName,
                         replyToPreview = parsed.replyToPreview,
                     )
-                }.reversed()
+                }.sortedBy { it.timestamp }
         }
 
         private fun stripSenderUrl(url: String): String =
@@ -876,6 +878,24 @@ class TeamsApiClient
         }
 
         // ─── Parsing helpers ─────────────────────────────────────────
+
+        private val IMAGE_FILE_TYPES = setOf("png", "jpg", "jpeg", "gif", "bmp", "webp", "svg")
+
+        private fun parseFileAttachmentImages(properties: JSONObject?): List<String> {
+            val filesStr = properties?.optString("files", "") ?: return emptyList()
+            if (filesStr.isBlank()) return emptyList()
+            return try {
+                val files = JSONArray(filesStr)
+                files.objects().mapNotNull { file ->
+                    val fileType = file.optString("fileType", "").lowercase()
+                    if (fileType !in IMAGE_FILE_TYPES) return@mapNotNull null
+                    val preview = file.optJSONObject("filePreview")
+                    preview?.optString("previewUrl", "")?.ifEmpty { null }
+                }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
 
         private fun parseReactions(emotions: JSONArray?): List<Reaction> {
             if (emotions == null) return emptyList()
