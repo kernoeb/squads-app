@@ -2,6 +2,7 @@ package com.squads.app.data
 
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import org.jsoup.nodes.TextNode
 
 private val EMOJI_IMG_DOMAINS =
@@ -10,6 +11,10 @@ private val EMOJI_IMG_DOMAINS =
         "statics.teams.microsoft.com",
         "emojipedia-us.s3.amazonaws.com",
     )
+
+private val HORIZONTAL_WS = Regex("[ \\t]+")
+private val WS_AROUND_NEWLINE = Regex(" *\n *")
+private val EXCESS_NEWLINES = Regex("\n{3,}")
 
 data class ParsedMessage(
     val text: String,
@@ -54,10 +59,16 @@ object HtmlParser {
         doc.select("br").forEach { it.replaceWith(TextNode("\n")) }
         doc.select("div, p, li").forEach { it.prepend("\n") }
 
+        // Use wholeText (preserves whitespace) and collapse manually — doc.text()
+        // normalises \n into spaces, which would defeat the <br>/<p> markers above
+        // and silently break optimistic-send dedup for multi-line messages.
         val text =
             doc
-                .text()
-                .replace(Regex("\n{3,}"), "\n\n")
+                .body()
+                .wholeText()
+                .replace(HORIZONTAL_WS, " ")
+                .replace(WS_AROUND_NEWLINE, "\n")
+                .replace(EXCESS_NEWLINES, "\n\n")
                 .trim()
 
         return ParsedMessage(text, imageUrls, replyToName, replyToPreview)
@@ -85,12 +96,18 @@ object HtmlParser {
             currentHtml.clear()
         }
 
-        for (child in body.children()) {
-            val imgs = child.select("img[src]").filter { !isEmojiImage(it.attr("src"), it) }
+        // Iterate childNodes (not children) so direct text nodes of body — present when
+        // the message HTML is unwrapped, e.g. "hello<br>world" — are not dropped.
+        for (node in body.childNodes()) {
+            val imgs =
+                (node as? Element)
+                    ?.select("img[src]")
+                    ?.filter { !isEmojiImage(it.attr("src"), it) }
+                    .orEmpty()
 
-            if (imgs.isNotEmpty()) {
+            if (node is Element && imgs.isNotEmpty()) {
                 imgs.forEach { it.remove() }
-                val textPart = child.html().trim()
+                val textPart = node.html().trim()
                 if (textPart.isNotEmpty()) {
                     currentHtml.append(textPart)
                 }
@@ -101,7 +118,7 @@ object HtmlParser {
                     htmlImages.add(url)
                 }
             } else {
-                currentHtml.append(child.outerHtml())
+                currentHtml.append(node.outerHtml())
             }
         }
         flushText()

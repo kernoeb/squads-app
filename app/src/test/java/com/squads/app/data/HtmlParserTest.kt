@@ -85,6 +85,26 @@ class HtmlParserTest {
     }
 
     @Test
+    fun `parseMessage round-trips newline content for optimistic dedup`() {
+        // mergeWithOptimistic compares local raw content vs server parsed text by equality.
+        // Local "hello\nworld" sends as html "hello<br>world", server returns "<p>hello<br>world</p>".
+        // Both must yield the same parsed text.
+        val parsedServer = HtmlParser.parseMessage("<p>hello<br>world</p>").text
+        assertEquals("hello\nworld", parsedServer)
+    }
+
+    @Test
+    fun `parseContentBlocks keeps text when not wrapped in a block element`() {
+        // Local optimistic non-reply messages with newlines look like "hello<br>world"
+        // (no surrounding <p>). Body's text nodes must not be lost when iterating.
+        val blocks = HtmlParser.parseContentBlocks("hello<br>world")
+        assertEquals(1, blocks.size)
+        val text = (blocks[0] as ContentBlock.Text).html
+        assertTrue("hello" in text) { "expected 'hello' in $text" }
+        assertTrue("world" in text) { "expected 'world' in $text" }
+    }
+
+    @Test
     fun `parseContentBlocks preserves interleaved text and images`() {
         val html =
             """
