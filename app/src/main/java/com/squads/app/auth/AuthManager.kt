@@ -59,7 +59,9 @@ class AuthManager
         private val prefs: SharedPreferences =
             context.getSharedPreferences("squads_auth", Context.MODE_PRIVATE)
 
-        private val _isAuthenticated = MutableStateFlow(prefs.contains("refresh_token"))
+        private val tokenStore = TokenStore(prefs, KeystoreTokenCipher())
+
+        private val _isAuthenticated = MutableStateFlow(tokenStore.hasStoredToken())
         val isAuthenticated: StateFlow<Boolean> = _isAuthenticated
 
         private val _userName = MutableStateFlow(prefs.getString("user_name", null))
@@ -118,10 +120,8 @@ class AuthManager
                 val refreshToken = pollForToken(deviceCode, pendingInterval, maxAttempts = 60)
 
                 if (refreshToken != null) {
-                    prefs.edit {
-                        putString("refresh_token", refreshToken)
-                        putString("user_name", "User")
-                    }
+                    tokenStore.set(refreshToken)
+                    prefs.edit { putString("user_name", "User") }
 
                     _isAuthenticated.value = true
                     _userName.value = "User"
@@ -206,17 +206,25 @@ class AuthManager
                 }
             }
 
-        fun getRefreshToken(): String? = prefs.getString("refresh_token", null)
+        /**
+         * Decrypted refresh token, cached in memory after the first read. If the stored token
+         * cannot be decrypted it is cleared and the session is marked as logged out.
+         */
+        fun getRefreshToken(): String? {
+            val token = tokenStore.get()
+            if (token == null && _isAuthenticated.value) {
+                _isAuthenticated.value = false
+            }
+            return token
+        }
 
         val isDemoMode: Boolean
             get() = getRefreshToken() == MOCK_REFRESH_TOKEN
 
         /** Mock login for development — simulates a successful auth with demo data. */
         fun mockLogin() {
-            prefs.edit {
-                putString("refresh_token", MOCK_REFRESH_TOKEN)
-                putString("user_name", "You")
-            }
+            tokenStore.set(MOCK_REFRESH_TOKEN)
+            prefs.edit { putString("user_name", "You") }
             _isAuthenticated.value = true
             _userName.value = "You"
             _deviceCodeState.value = DeviceCodeState.Idle
@@ -228,6 +236,7 @@ class AuthManager
         }
 
         fun logout() {
+            tokenStore.clear()
             prefs.edit { clear() }
             _isAuthenticated.value = false
             _userName.value = null
