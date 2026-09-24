@@ -113,7 +113,11 @@ class TeamsApiClient
                         headers = mapOf("Origin" to "https://teams.microsoft.com"),
                     )
                 } catch (e: Exception) {
-                    if (e.message?.contains("invalid_grant") == true) {
+                    // Typed check first; message fallback covers a body the parser could not read.
+                    val invalidGrant =
+                        (e as? HttpException)?.errorCode == "invalid_grant" ||
+                            e.message?.contains("invalid_grant") == true
+                    if (invalidGrant) {
                         Log.w(TAG, "Refresh token expired or revoked, logging out")
                         clearAll()
                         authManager.logout()
@@ -146,7 +150,7 @@ class TeamsApiClient
                 httpClient.newCall(request).execute().use { response ->
                     val body = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("API error (${response.code}): $body")
+                        throw HttpException.fromResponse(response.code, body)
                     }
                     body
                 }
@@ -173,7 +177,7 @@ class TeamsApiClient
                 httpClient.newCall(builder.build()).execute().use { response ->
                     val responseBody = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("HTTP ${response.code}: $responseBody")
+                        throw HttpException.fromResponse(response.code, responseBody)
                     }
                     responseBody
                 }
@@ -879,7 +883,7 @@ class TeamsApiClient
                     .build()
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}: ${response.body.string()}")
+                    throw HttpException.fromResponse(response.code, response.body.string())
                 }
             }
         }

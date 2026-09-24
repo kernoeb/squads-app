@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.squads.app.data.HttpException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -20,6 +21,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -89,7 +91,9 @@ class AuthManager
 
                 _deviceCodeState.value = DeviceCodeState.CodeReady(userCode, verificationUrl)
             } catch (e: Exception) {
-                _deviceCodeState.value = DeviceCodeState.Error(e.message ?: "Failed to get device code")
+                Log.w(TAG, "Device code request failed: ${logReason(e)}")
+                _deviceCodeState.value =
+                    DeviceCodeState.Error(loginErrorMessage(e, "Failed to get device code"))
             }
         }
 
@@ -126,7 +130,9 @@ class AuthManager
                     _deviceCodeState.value = DeviceCodeState.Error("Login timed out. Please try again.")
                 }
             } catch (e: Exception) {
-                _deviceCodeState.value = DeviceCodeState.Error(e.message ?: "Authentication failed")
+                Log.w(TAG, "Device code login failed: ${logReason(e)}")
+                _deviceCodeState.value =
+                    DeviceCodeState.Error(loginErrorMessage(e, "Authentication failed"))
             }
         }
 
@@ -149,7 +155,7 @@ class AuthManager
                 httpClient.newCall(request).execute().use { response ->
                     val body = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("Device code request failed (${response.code}): $body")
+                        throw HttpException.fromResponse(response.code, body)
                     }
                     JSONObject(body)
                 }
@@ -168,8 +174,8 @@ class AuthManager
                         return refreshToken
                     }
                 } catch (e: Exception) {
-                    // Not yet authorized — keep polling
-                    Log.d("AuthManager", "Device code poll: ${e.message}")
+                    // Not yet authorized — keep polling. Log the summary, never the body.
+                    Log.d(TAG, "Device code poll: ${logReason(e)}")
                 }
                 delay(intervalSec * 1000L)
             }
@@ -193,7 +199,8 @@ class AuthManager
                 httpClient.newCall(request).execute().use { response ->
                     val body = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("Pending (${response.code})")
+                        // Typically authorization_pending; errorCode carries it for the poll log.
+                        throw HttpException.fromResponse(response.code, body)
                     }
                     JSONObject(body)
                 }
@@ -233,5 +240,31 @@ class AuthManager
 
         companion object {
             const val MOCK_REFRESH_TOKEN = "mock_refresh_token"
+            private const val TAG = "AuthManager"
+            private const val MAX_UI_ERROR_CHARS = 120
+
+            /**
+             * Short, user-oriented error text for [DeviceCodeState.Error]. Never includes the
+             * raw response body or a raw exception message.
+             */
+            internal fun loginErrorMessage(
+                e: Exception,
+                fallback: String,
+            ): String {
+                val text =
+                    when (e) {
+                        is HttpException -> "Login failed (${e.summary})"
+                        is IOException -> "Login failed: network error. Check your connection."
+                        else -> fallback
+                    }
+                return text.take(MAX_UI_ERROR_CHARS)
+            }
+
+            /**
+             * Bounded log text. Other exception messages (e.g. JSONException) can embed the whole
+             * response body, so only the class name is logged for them.
+             */
+            private fun logReason(e: Exception): String =
+                (e as? HttpException)?.summary ?: e.javaClass.simpleName
         }
     }
