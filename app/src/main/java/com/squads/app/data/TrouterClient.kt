@@ -301,8 +301,26 @@ class TrouterClient
             val data = JSONObject(frameData(frame))
             val args = data.getJSONArray("args").getJSONObject(0)
             val surl = args.getString("surl")
+            reconnectUrl =
+                args.optString("reconnectUrl").ifEmpty { null }?.let { url ->
+                    if (TrouterUrlPolicy.isAllowedReconnectUrl(url)) {
+                        url
+                    } else {
+                        val host = TrouterUrlPolicy.hostForLog(url)
+                        Log.w(TAG, "Ignoring reconnectUrl with disallowed host $host")
+                        null
+                    }
+                }
+
+            if (!TrouterUrlPolicy.isAllowedSurl(surl)) {
+                val host = TrouterUrlPolicy.hostForLog(surl)
+                Log.w(TAG, "Rejecting surl with disallowed host $host")
+                trouterSurl = null
+                // cancel() surfaces as onFailure, so the normal backoff reconnect kicks in.
+                webSocket.cancel()
+                return
+            }
             trouterSurl = surl
-            reconnectUrl = args.optString("reconnectUrl").ifEmpty { null }
 
             scope?.launch {
                 try {
