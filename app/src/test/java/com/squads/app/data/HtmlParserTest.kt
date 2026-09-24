@@ -191,4 +191,16 @@ class HtmlParserTest {
         val expected = "Tom &amp; Jerry &lt;3 fun<br>new line"
         assertEquals(expected, input.escapeForTeamsHtml())
     }
+
+    @Test
+    fun `escapeForTeamsHtml escapes double quotes`() {
+        assertEquals("say &quot;hi&quot;", "say \"hi\"".escapeForTeamsHtml())
+    }
+
+    @Test
+    fun `escapeForTeamsHtml neutralises markup in display names`() {
+        val name = "Eve <img src=x onerror=alert(1)> & Co"
+        val expected = "Eve &lt;img src=x onerror=alert(1)&gt; &amp; Co"
+        assertEquals(expected, name.escapeForTeamsHtml())
+    }
 }

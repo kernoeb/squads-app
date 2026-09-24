@@ -39,6 +39,7 @@ class ChatsViewModel
 
         companion object {
             private const val TAG = "ChatsViewModel"
+            private val WHITESPACE_RUN = Regex("\\s+")
         }
 
         val chats: StateFlow<List<ChatConversation>> = _chats
@@ -375,7 +376,10 @@ class ChatsViewModel
             val htmlContent =
                 if (replyTo != null) {
                     val replyName =
-                        if (replyTo.isFromMe) senderDisplayName else replyTo.senderName
+                        (if (replyTo.isFromMe) senderDisplayName else replyTo.senderName)
+                            .replace(WHITESPACE_RUN, " ")
+                            .trim()
+                            .escapeForTeamsHtml()
                     val preview = replyTo.content.take(200).escapeForTeamsHtml()
                     "<blockquote itemtype=\"http://schema.skype.com/Reply\">" +
                         "<strong>$replyName</strong>" +

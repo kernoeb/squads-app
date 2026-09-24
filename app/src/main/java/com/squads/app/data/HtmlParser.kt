@@ -165,4 +165,5 @@ fun String.escapeForTeamsHtml(): String =
     replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
+        .replace("\"", "&quot;")
         .replace("\n", "<br>")
