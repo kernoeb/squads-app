@@ -80,6 +80,30 @@ class HtmlParserTest {
     }
 
     @Test
+    fun `parseContentBlocks drops non-https images`() {
+        val html =
+            """<p>Hi</p>""" +
+                """<p><img src="http://graph.microsoft.com/a.png"></p>""" +
+                """<p><img src="data:image/png;base64,AAAA"></p>""" +
+                """<p><img src="file:///sdcard/secret.png"></p>""" +
+                """<p><img src="content://media/external/images/1"></p>""" +
+                """<p><img src="https://eu-api.asm.skype.com/v1/objects/x/views/imgo"></p>"""
+        val images = HtmlParser.parseContentBlocks(html).filterIsInstance<ContentBlock.Image>()
+        assertEquals(listOf("https://eu-api.asm.skype.com/v1/objects/x/views/imgo"), images.map { it.url })
+    }
+
+    @Test
+    fun `parseContentBlocks drops non-https extra image urls`() {
+        val blocks =
+            HtmlParser.parseContentBlocks(
+                "<p>Hi</p>",
+                extraImageUrls = listOf("http://x.com/a.png", "file:///a.png", "https://x.com/b.png"),
+            )
+        val images = blocks.filterIsInstance<ContentBlock.Image>()
+        assertEquals(listOf("https://x.com/b.png"), images.map { it.url })
+    }
+
+    @Test
     fun `parseContentBlocks with blank html returns empty`() {
         assertEquals(emptyList<ContentBlock>(), HtmlParser.parseContentBlocks(""))
     }

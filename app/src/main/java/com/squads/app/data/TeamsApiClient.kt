@@ -200,15 +200,18 @@ class TeamsApiClient
         /** IC3 token for Trouter auth + registrar. */
         suspend fun getIc3Token(): String = getToken(SCOPE_IC3)
 
-        /** Public token accessor for Coil auth interceptor. */
+        /**
+         * Token for [url], or null unless it is https on an allowlisted Microsoft host.
+         * Used by the Coil auth interceptor, so [url] may be attacker-controlled.
+         */
         suspend fun getTokenForUrl(url: String): String? =
             if (isDemoMode) {
                 null
             } else {
-                when {
-                    "graph.microsoft.com" in url -> getToken(SCOPE_GRAPH)
-                    "teams.microsoft.com" in url || "asm.skype.com" in url -> getToken(SCOPE_IC3)
-                    else -> null
+                when (TokenScopeResolver.resolve(url)) {
+                    TokenScope.GRAPH -> getToken(SCOPE_GRAPH)
+                    TokenScope.IC3 -> getToken(SCOPE_IC3)
+                    null -> null
                 }
             }
 

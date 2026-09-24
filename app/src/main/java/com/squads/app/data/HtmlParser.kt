@@ -82,6 +82,8 @@ object HtmlParser {
         val doc = Jsoup.parse(html)
         resolveEmojis(doc)
         doc.select("blockquote").remove()
+        // Only https images may be rendered; drop data:, file:, content:, http:, etc.
+        doc.select("img").filterNot { isSafeImageUrl(it.attr("src")) }.forEach { it.remove() }
 
         val blocks = mutableListOf<ContentBlock>()
         val htmlImages = mutableSetOf<String>()
@@ -124,13 +126,15 @@ object HtmlParser {
         flushText()
 
         for (url in extraImageUrls) {
-            if (url !in htmlImages) {
+            if (url !in htmlImages && isSafeImageUrl(url)) {
                 blocks.add(ContentBlock.Image(url))
             }
         }
 
         return blocks
     }
+
+    private fun isSafeImageUrl(url: String): Boolean = url.startsWith("https://")
 
     private fun resolveEmojis(doc: Document) {
         doc.select("emoji").forEach { el ->
