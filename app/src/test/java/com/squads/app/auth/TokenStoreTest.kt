@@ -181,13 +181,9 @@ private class FakeSharedPreferences : SharedPreferences {
 
     override fun edit(): SharedPreferences.Editor = Editor()
 
-    override fun registerOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener,
-    ) = Unit
+    override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) = Unit
 
-    override fun unregisterOnSharedPreferenceChangeListener(
-        listener: SharedPreferences.OnSharedPreferenceChangeListener,
-    ) = Unit
+    override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) = Unit
 
     private inner class Editor : SharedPreferences.Editor {
         private val puts = mutableMapOf<String, Any?>()

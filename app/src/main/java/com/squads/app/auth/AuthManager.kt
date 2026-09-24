@@ -273,7 +273,6 @@ class AuthManager
              * Bounded log text. Other exception messages (e.g. JSONException) can embed the whole
              * response body, so only the class name is logged for them.
              */
-            private fun logReason(e: Exception): String =
-                (e as? HttpException)?.summary ?: e.javaClass.simpleName
+            private fun logReason(e: Exception): String = (e as? HttpException)?.summary ?: e.javaClass.simpleName
         }
     }

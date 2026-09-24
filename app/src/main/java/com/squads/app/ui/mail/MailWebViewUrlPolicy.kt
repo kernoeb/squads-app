@@ -19,5 +19,4 @@ internal fun isGraphImageUrl(url: String): Boolean {
 }
 
 /** Returns true when a link tapped in an email body may be handed off to an external app. */
-internal fun isAllowedExternalLinkScheme(scheme: String?): Boolean =
-    scheme?.lowercase() in EXTERNAL_LINK_SCHEMES
+internal fun isAllowedExternalLinkScheme(scheme: String?): Boolean = scheme?.lowercase() in EXTERNAL_LINK_SCHEMES
