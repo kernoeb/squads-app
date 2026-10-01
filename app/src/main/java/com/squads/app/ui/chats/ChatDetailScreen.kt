@@ -86,6 +86,7 @@ fun ChatDetailScreen(
     val messages by viewModel.messages.collectAsState()
     val messagesLoading by viewModel.messagesLoading.collectAsState()
     val presenceMap by viewModel.presenceMap.collectAsState()
+    val typingSenders by viewModel.typingSenders.collectAsState()
     var inputText by remember { mutableStateOf("") }
     var fullscreenImageUrl by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
@@ -133,12 +134,23 @@ fun ChatDetailScreen(
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                 )
-                                val subtitle =
-                                    if (currentChat.isOneOnOne) {
-                                        memberPresence?.displayName ?: "Chat"
-                                    } else {
-                                        "${currentChat.memberCount} members"
+                                // Teams rarely sends the name: in a 1:1 the person is
+                                // obvious, in a group they are not.
+                                val typingLabel =
+                                    typingSenders[currentChat.id]?.let { sender ->
+                                        when {
+                                            sender.isNotEmpty() -> "$sender is typing…"
+                                            currentChat.isOneOnOne -> "Typing…"
+                                            else -> "Someone is typing…"
+                                        }
                                     }
+                                val subtitle =
+                                    typingLabel
+                                        ?: if (currentChat.isOneOnOne) {
+                                            memberPresence?.displayName ?: "Chat"
+                                        } else {
+                                            "${currentChat.memberCount} members"
+                                        }
                                 Text(
                                     subtitle,
                                     style = MaterialTheme.typography.bodySmall,

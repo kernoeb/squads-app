@@ -40,6 +40,10 @@ class ChatsViewModel
         companion object {
             private const val TAG = "ChatsViewModel"
             private val WHITESPACE_RUN = Regex("\\s+")
+
+            // Teams sends no "stopped typing" event, so the indicator has to expire on its own.
+            // Keep it above the repeat interval of Control/Typing, or the indicator flickers.
+            private const val TYPING_TIMEOUT_MS = 8_000L
         }
 
         val chats: StateFlow<List<ChatConversation>> = _chats
@@ -52,6 +56,10 @@ class ChatsViewModel
 
         private val _presenceMap = MutableStateFlow<Map<String, PresenceAvailability>>(emptyMap())
         val presenceMap: StateFlow<Map<String, PresenceAvailability>> = _presenceMap
+
+        // Chat id → sender name, empty when Teams does not tell us who is typing.
+        private val _typingSenders = MutableStateFlow<Map<String, String>>(emptyMap())
+        val typingSenders: StateFlow<Map<String, String>> = _typingSenders
 
         private val _isLoading = MutableStateFlow(false)
         val isLoading: StateFlow<Boolean> = _isLoading
@@ -69,6 +77,7 @@ class ChatsViewModel
         private var chatRefreshJob: Job? = null
         private var messageRefreshJob: Job? = null
         private var presenceJob: Job? = null
+        private val typingJobs = mutableMapOf<String, Job>()
         private var lastResumeTime = 0L
 
         init {
@@ -101,6 +110,7 @@ class ChatsViewModel
             _selectedChat.value = null
             _error.value = null
             _presenceMap.value = emptyMap()
+            _typingSenders.value = emptyMap()
             myDisplayName = null
             lastResumeTime = 0L
             api.invalidateCache()
@@ -118,6 +128,7 @@ class ChatsViewModel
             _messages.value = emptyList()
             _selectedChat.value = null
             _presenceMap.value = emptyMap()
+            _typingSenders.value = emptyMap()
         }
 
         private fun cancelAllJobs() {
@@ -126,6 +137,8 @@ class ChatsViewModel
             chatRefreshJob?.cancel()
             messageRefreshJob?.cancel()
             presenceJob?.cancel()
+            typingJobs.values.forEach { it.cancel() }
+            typingJobs.clear()
         }
 
         private fun loadMyInfo() {
@@ -164,7 +177,7 @@ class ChatsViewModel
                         is TrouterClient.Event.PresenceChanged -> onPresenceChanged(event)
                         is TrouterClient.Event.ReadHorizonUpdate -> refreshChatsDebounced()
                         is TrouterClient.Event.Connected -> onTrouterConnected()
-                        is TrouterClient.Event.Typing -> {}
+                        is TrouterClient.Event.Typing -> onTyping(event)
                         is TrouterClient.Event.Disconnected -> {}
                     }
                 }
@@ -191,6 +204,17 @@ class ChatsViewModel
             val current = _presenceMap.value.toMutableMap()
             current[event.userId] = PresenceAvailability.fromString(event.availability)
             _presenceMap.value = current
+        }
+
+        private fun onTyping(event: TrouterClient.Event.Typing) {
+            _typingSenders.value = _typingSenders.value + (event.chatId to event.senderName)
+            typingJobs.remove(event.chatId)?.cancel()
+            typingJobs[event.chatId] =
+                viewModelScope.launch {
+                    delay(TYPING_TIMEOUT_MS)
+                    _typingSenders.value = _typingSenders.value - event.chatId
+                    typingJobs.remove(event.chatId)
+                }
         }
 
         private fun refreshChatsDebounced() {

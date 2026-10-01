@@ -394,10 +394,9 @@ class TrouterClient
                         _events.tryEmit(Event.ReadHorizonUpdate(chatId))
                     }
                     messageType == "Control/Typing" -> {
+                        // Teams sends typing with an empty imdisplayname, so never gate on the name.
                         val sender = resource.optString("imdisplayname", "")
-                        if (sender.isNotEmpty()) {
-                            _events.tryEmit(Event.Typing(chatId, sender))
-                        }
+                        _events.tryEmit(Event.Typing(chatId, sender))
                     }
                     resourceType == "NewMessage" && messageType in setOf("RichText/Html", "Text") -> {
                         _events.tryEmit(
