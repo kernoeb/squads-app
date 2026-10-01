@@ -113,7 +113,11 @@ class TeamsApiClient
                         headers = mapOf("Origin" to "https://teams.microsoft.com"),
                     )
                 } catch (e: Exception) {
-                    if (e.message?.contains("invalid_grant") == true) {
+                    // Typed check first; message fallback covers a body the parser could not read.
+                    val invalidGrant =
+                        (e as? HttpException)?.errorCode == "invalid_grant" ||
+                            e.message?.contains("invalid_grant") == true
+                    if (invalidGrant) {
                         Log.w(TAG, "Refresh token expired or revoked, logging out")
                         clearAll()
                         authManager.logout()
@@ -146,7 +150,7 @@ class TeamsApiClient
                 httpClient.newCall(request).execute().use { response ->
                     val body = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("API error (${response.code}): $body")
+                        throw HttpException.fromResponse(response.code, body)
                     }
                     body
                 }
@@ -173,7 +177,7 @@ class TeamsApiClient
                 httpClient.newCall(builder.build()).execute().use { response ->
                     val responseBody = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("HTTP ${response.code}: $responseBody")
+                        throw HttpException.fromResponse(response.code, responseBody)
                     }
                     responseBody
                 }
@@ -200,15 +204,18 @@ class TeamsApiClient
         /** IC3 token for Trouter auth + registrar. */
         suspend fun getIc3Token(): String = getToken(SCOPE_IC3)
 
-        /** Public token accessor for Coil auth interceptor. */
+        /**
+         * Token for [url], or null unless it is https on an allowlisted Microsoft host.
+         * Used by the Coil auth interceptor, so [url] may be attacker-controlled.
+         */
         suspend fun getTokenForUrl(url: String): String? =
             if (isDemoMode) {
                 null
             } else {
-                when {
-                    "graph.microsoft.com" in url -> getToken(SCOPE_GRAPH)
-                    "teams.microsoft.com" in url || "asm.skype.com" in url -> getToken(SCOPE_IC3)
-                    else -> null
+                when (TokenScopeResolver.resolve(url)) {
+                    TokenScope.GRAPH -> getToken(SCOPE_GRAPH)
+                    TokenScope.IC3 -> getToken(SCOPE_IC3)
+                    null -> null
                 }
             }
 
@@ -876,7 +883,7 @@ class TeamsApiClient
                     .build()
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw Exception("HTTP ${response.code}: ${response.body.string()}")
+                    throw HttpException.fromResponse(response.code, response.body.string())
                 }
             }
         }

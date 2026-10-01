@@ -1,5 +1,6 @@
 package com.squads.app.ui.mail
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -367,8 +368,12 @@ private fun MailBodyWebView(
                             view: WebView?,
                             request: WebResourceRequest?,
                         ): Boolean {
-                            request?.url?.let { uri ->
+                            val uri = request?.url ?: return true
+                            if (!isAllowedExternalLinkScheme(uri.scheme)) return true
+                            try {
                                 ctx.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                            } catch (_: ActivityNotFoundException) {
+                                // No app can handle this link; ignore.
                             }
                             return true
                         }
@@ -380,7 +385,8 @@ private fun MailBodyWebView(
                             val url = request?.url?.toString() ?: return null
                             val client = httpClient ?: return null
                             val token = authToken ?: return null
-                            if ("graph.microsoft.com" !in url && "teams.microsoft.com" !in url) return null
+                            // Only attach the Graph token to https://graph.microsoft.com (exact host).
+                            if (!isGraphImageUrl(url)) return null
                             return try {
                                 val okhttpRequest =
                                     okhttp3.Request

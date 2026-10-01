@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.squads.app.data.HttpException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -20,6 +21,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -57,7 +59,9 @@ class AuthManager
         private val prefs: SharedPreferences =
             context.getSharedPreferences("squads_auth", Context.MODE_PRIVATE)
 
-        private val _isAuthenticated = MutableStateFlow(prefs.contains("refresh_token"))
+        private val tokenStore = TokenStore(prefs, KeystoreTokenCipher())
+
+        private val _isAuthenticated = MutableStateFlow(tokenStore.hasStoredToken())
         val isAuthenticated: StateFlow<Boolean> = _isAuthenticated
 
         private val _userName = MutableStateFlow(prefs.getString("user_name", null))
@@ -89,7 +93,9 @@ class AuthManager
 
                 _deviceCodeState.value = DeviceCodeState.CodeReady(userCode, verificationUrl)
             } catch (e: Exception) {
-                _deviceCodeState.value = DeviceCodeState.Error(e.message ?: "Failed to get device code")
+                Log.w(TAG, "Device code request failed: ${logReason(e)}")
+                _deviceCodeState.value =
+                    DeviceCodeState.Error(loginErrorMessage(e, "Failed to get device code"))
             }
         }
 
@@ -114,10 +120,8 @@ class AuthManager
                 val refreshToken = pollForToken(deviceCode, pendingInterval, maxAttempts = 60)
 
                 if (refreshToken != null) {
-                    prefs.edit {
-                        putString("refresh_token", refreshToken)
-                        putString("user_name", "User")
-                    }
+                    tokenStore.set(refreshToken)
+                    prefs.edit { putString("user_name", "User") }
 
                     _isAuthenticated.value = true
                     _userName.value = "User"
@@ -126,7 +130,9 @@ class AuthManager
                     _deviceCodeState.value = DeviceCodeState.Error("Login timed out. Please try again.")
                 }
             } catch (e: Exception) {
-                _deviceCodeState.value = DeviceCodeState.Error(e.message ?: "Authentication failed")
+                Log.w(TAG, "Device code login failed: ${logReason(e)}")
+                _deviceCodeState.value =
+                    DeviceCodeState.Error(loginErrorMessage(e, "Authentication failed"))
             }
         }
 
@@ -149,7 +155,7 @@ class AuthManager
                 httpClient.newCall(request).execute().use { response ->
                     val body = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("Device code request failed (${response.code}): $body")
+                        throw HttpException.fromResponse(response.code, body)
                     }
                     JSONObject(body)
                 }
@@ -168,8 +174,8 @@ class AuthManager
                         return refreshToken
                     }
                 } catch (e: Exception) {
-                    // Not yet authorized — keep polling
-                    Log.d("AuthManager", "Device code poll: ${e.message}")
+                    // Not yet authorized — keep polling. Log the summary, never the body.
+                    Log.d(TAG, "Device code poll: ${logReason(e)}")
                 }
                 delay(intervalSec * 1000L)
             }
@@ -193,23 +199,32 @@ class AuthManager
                 httpClient.newCall(request).execute().use { response ->
                     val body = response.body.string()
                     if (!response.isSuccessful) {
-                        throw Exception("Pending (${response.code})")
+                        // Typically authorization_pending; errorCode carries it for the poll log.
+                        throw HttpException.fromResponse(response.code, body)
                     }
                     JSONObject(body)
                 }
             }
 
-        fun getRefreshToken(): String? = prefs.getString("refresh_token", null)
+        /**
+         * Decrypted refresh token, cached in memory after the first read. If the stored token
+         * cannot be decrypted it is cleared and the session is marked as logged out.
+         */
+        fun getRefreshToken(): String? {
+            val token = tokenStore.get()
+            if (token == null && _isAuthenticated.value) {
+                _isAuthenticated.value = false
+            }
+            return token
+        }
 
         val isDemoMode: Boolean
             get() = getRefreshToken() == MOCK_REFRESH_TOKEN
 
         /** Mock login for development — simulates a successful auth with demo data. */
         fun mockLogin() {
-            prefs.edit {
-                putString("refresh_token", MOCK_REFRESH_TOKEN)
-                putString("user_name", "You")
-            }
+            tokenStore.set(MOCK_REFRESH_TOKEN)
+            prefs.edit { putString("user_name", "You") }
             _isAuthenticated.value = true
             _userName.value = "You"
             _deviceCodeState.value = DeviceCodeState.Idle
@@ -221,6 +236,7 @@ class AuthManager
         }
 
         fun logout() {
+            tokenStore.clear()
             prefs.edit { clear() }
             _isAuthenticated.value = false
             _userName.value = null
@@ -233,5 +249,30 @@ class AuthManager
 
         companion object {
             const val MOCK_REFRESH_TOKEN = "mock_refresh_token"
+            private const val TAG = "AuthManager"
+            private const val MAX_UI_ERROR_CHARS = 120
+
+            /**
+             * Short, user-oriented error text for [DeviceCodeState.Error]. Never includes the
+             * raw response body or a raw exception message.
+             */
+            internal fun loginErrorMessage(
+                e: Exception,
+                fallback: String,
+            ): String {
+                val text =
+                    when (e) {
+                        is HttpException -> "Login failed (${e.summary})"
+                        is IOException -> "Login failed: network error. Check your connection."
+                        else -> fallback
+                    }
+                return text.take(MAX_UI_ERROR_CHARS)
+            }
+
+            /**
+             * Bounded log text. Other exception messages (e.g. JSONException) can embed the whole
+             * response body, so only the class name is logged for them.
+             */
+            private fun logReason(e: Exception): String = (e as? HttpException)?.summary ?: e.javaClass.simpleName
         }
     }
