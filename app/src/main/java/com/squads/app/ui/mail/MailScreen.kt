@@ -1,7 +1,5 @@
 package com.squads.app.ui.mail
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -369,12 +367,7 @@ private fun MailBodyWebView(
                             request: WebResourceRequest?,
                         ): Boolean {
                             val uri = request?.url ?: return true
-                            if (!isAllowedExternalLinkScheme(uri.scheme)) return true
-                            try {
-                                ctx.startActivity(Intent(Intent.ACTION_VIEW, uri))
-                            } catch (_: ActivityNotFoundException) {
-                                // No app can handle this link; ignore.
-                            }
+                            openExternalLink(ctx, uri)
                             return true
                         }
 

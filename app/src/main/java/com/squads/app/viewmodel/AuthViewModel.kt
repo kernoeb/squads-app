@@ -71,9 +71,10 @@ class AuthViewModel
             viewModelScope.launch {
                 _isLoggingOut.value = true
                 try {
-                    clearStoredData()
+                    // End the session first: polling stops, so it cannot write chats after the wipe.
                     apiClient.clearAll()
                     authManager.logout()
+                    clearStoredData()
                 } finally {
                     _isLoggingOut.value = false
                 }
