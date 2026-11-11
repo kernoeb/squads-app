@@ -86,15 +86,15 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3:1.5.0-alpha29")
+    implementation("androidx.compose.material3:material3:1.5.0-rc01")
     implementation("androidx.compose.material:material-icons-extended")
 
     // Activity & Navigation
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.navigation3:navigation3-runtime:1.2.0")
-    implementation("androidx.navigation3:navigation3-ui:1.2.0")
+    implementation("androidx.navigation3:navigation3-runtime:1.2.1")
+    implementation("androidx.navigation3:navigation3-ui:1.2.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:2.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.12.0")
 
     // Lifecycle & ViewModel
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.0")
@@ -109,11 +109,12 @@ dependencies {
     implementation("androidx.compose.ui:ui-text-google-fonts")
 
     // Haze (glassmorphism / blur effects)
-    implementation("dev.chrisbanes.haze:haze:1.7.3")
-    implementation("dev.chrisbanes.haze:haze-materials:1.7.3")
+    implementation("dev.chrisbanes.haze:haze:2.1.0")
+    implementation("dev.chrisbanes.haze:haze-blur:2.1.0")
+    implementation("dev.chrisbanes.haze:haze-blur-materials:2.1.0")
 
     // HTTP client
-    implementation("com.squareup.okhttp3:okhttp:5.5.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
 
     // Image loading (Coil 3)
     implementation("io.coil-kt.coil3:coil-compose:3.6.3")
@@ -126,7 +127,7 @@ dependencies {
     ksp("androidx.room:room-compiler:$roomVersion")
 
     // HTML parsing
-    implementation("org.jsoup:jsoup:1.23.2")
+    implementation("org.jsoup:jsoup:1.24.1")
 
     // Browser (CustomTab for OAuth)
     implementation("androidx.browser:browser:1.10.0")
