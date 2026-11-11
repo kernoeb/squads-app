@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.random.Random
 
 @HiltViewModel
 class ChatsViewModel
@@ -274,7 +275,7 @@ class ChatsViewModel
             viewModelScope.launch {
                 try {
                     val msgs = chatRepository.refreshMessages(chat.id)
-                    _messages.value = msgs
+                    _messages.value = mergeWithOptimistic(msgs)
                     if (chat.isUnread) {
                         chatRepository.markChatAsRead(chat.id, msgs.lastOrNull()?.id)
                     }
@@ -287,21 +288,7 @@ class ChatsViewModel
             startMessagePolling(chat.id)
         }
 
-        private fun mergeWithOptimistic(server: List<ChatMessage>): List<ChatMessage> {
-            val pending = _messages.value.filter { it.id.startsWith("local-") }
-            if (pending.isEmpty()) return server
-            val matched = mutableSetOf<String>()
-            val stillPending =
-                pending.filter { local ->
-                    val echo =
-                        server.firstOrNull { s ->
-                            s.isFromMe && s.id !in matched && s.content == local.content
-                        }
-                    if (echo != null) matched.add(echo.id)
-                    echo == null
-                }
-            return server + stillPending
-        }
+        private fun mergeWithOptimistic(server: List<ChatMessage>): List<ChatMessage> = mergeWithOptimistic(_messages.value, server)
 
         private fun startMessagePolling(chatId: String) {
             messagePollingJob?.cancel()
@@ -313,7 +300,7 @@ class ChatsViewModel
                         try {
                             val fresh = chatRepository.refreshMessages(chatId)
                             val merged = mergeWithOptimistic(fresh)
-                            val serverIds = _messages.value.filter { !it.id.startsWith("local-") }
+                            val serverIds = _messages.value.filter { !it.id.startsWith(LOCAL_ID_PREFIX) }
                             if (fresh.size != serverIds.size ||
                                 fresh.lastOrNull()?.id != serverIds.lastOrNull()?.id
                             ) {
@@ -414,9 +401,11 @@ class ChatsViewModel
                     escapedContent
                 }
 
+            val clientMessageId = Random.nextLong(1, Long.MAX_VALUE).toString()
             val newMsg =
                 ChatMessage(
-                    id = "local-${System.currentTimeMillis()}",
+                    id = "$LOCAL_ID_PREFIX$clientMessageId",
+                    clientMessageId = clientMessageId,
                     content = content,
                     contentHtml = htmlContent,
                     senderName = senderDisplayName,
@@ -436,9 +425,9 @@ class ChatsViewModel
                 try {
                     chatRepository.insertLocalMessage(chatId, newMsg)
                     if (replyTo != null) {
-                        api.sendHtmlMessage(chatId, htmlContent)
+                        api.sendHtmlMessage(chatId, htmlContent, clientMessageId)
                     } else {
-                        api.sendTextMessage(chatId, content)
+                        api.sendTextMessage(chatId, content, clientMessageId)
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Send failed, removing optimistic message ${newMsg.id}", e)

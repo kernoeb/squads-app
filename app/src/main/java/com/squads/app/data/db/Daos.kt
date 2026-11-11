@@ -5,11 +5,12 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.squads.app.data.NOTES_CHAT_ID
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChatDao {
-    @Query("SELECT * FROM chats ORDER BY lastMessageTimeEpoch DESC")
+    @Query("SELECT * FROM chats ORDER BY id = '$NOTES_CHAT_ID' DESC, lastMessageTimeEpoch DESC")
     fun observeChats(): Flow<List<ChatConversationEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
