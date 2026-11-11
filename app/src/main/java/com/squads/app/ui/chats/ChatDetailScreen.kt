@@ -66,17 +66,17 @@ import com.squads.app.ui.components.ChatAvatar
 import com.squads.app.ui.components.EmptyScreen
 import com.squads.app.ui.components.LoadingScreen
 import com.squads.app.viewmodel.ChatsViewModel
+import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.blur.materials.CupertinoMaterials
 import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.materials.CupertinoMaterials
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.launch
 import java.time.Duration
 
 private const val MESSAGE_GROUP_GAP_MINUTES = 5L
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatDetailScreen(
     viewModel: ChatsViewModel,
@@ -302,7 +302,6 @@ fun ChatDetailScreen(
     }
 }
 
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun MessageInput(
     value: String,
@@ -314,7 +313,7 @@ private fun MessageInput(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .hazeEffect(state = hazeState, style = CupertinoMaterials.regular())
+                .hazeBlur(input = HazeInput.Backdrop(hazeState), style = CupertinoMaterials.regular())
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

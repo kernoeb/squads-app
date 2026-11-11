@@ -57,11 +57,11 @@ import com.squads.app.ui.teams.TeamsScreen
 import com.squads.app.viewmodel.AuthViewModel
 import com.squads.app.viewmodel.ChatsViewModel
 import com.squads.app.viewmodel.MailViewModel
+import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.blur.materials.CupertinoMaterials
 import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.materials.CupertinoMaterials
-import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import com.squads.app.ui.navigation.Calendar as CalendarRoute
 import com.squads.app.ui.navigation.Search as SearchRoute
 import com.squads.app.ui.navigation.Teams as TeamsRoute
@@ -107,7 +107,6 @@ fun SquadsApp(authViewModel: AuthViewModel = hiltViewModel()) {
     }
 }
 
-@OptIn(ExperimentalHazeMaterialsApi::class)
 @Composable
 private fun MainApp(authViewModel: AuthViewModel) {
     val navigationState =
@@ -137,8 +136,8 @@ private fun MainApp(authViewModel: AuthViewModel) {
                     NavigationBar(
                         containerColor = Color.Transparent,
                         modifier =
-                            Modifier.hazeEffect(
-                                state = hazeState,
+                            Modifier.hazeBlur(
+                                input = HazeInput.Backdrop(hazeState),
                                 style = hazeStyle,
                             ),
                     ) {

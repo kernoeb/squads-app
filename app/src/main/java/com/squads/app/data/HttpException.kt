@@ -43,7 +43,8 @@ class HttpException(
             if (!trimmed.startsWith("{")) return null
             val raw =
                 try {
-                    when (val error = JSONObject(trimmed).opt("error")) {
+                    val error: Any? = JSONObject(trimmed).opt("error")
+                    when (error) {
                         is String -> error
                         is JSONObject -> error.opt("code") as? String
                         else -> null
