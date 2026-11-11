@@ -354,6 +354,11 @@ fun MessageRow(
                     }
                     is ContentBlock.Text -> {
                         if (block.html.contains('<') && block.html.contains('>')) {
+                            val linkedText =
+                                remember(block.html) {
+                                    val spanned = Html.fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT).withSafeLinks()
+                                    spanned.subSequence(0, spanned.toString().trimEnd().length)
+                                }
                             AndroidView(
                                 factory = { ctx ->
                                     TextView(ctx).apply {
@@ -364,11 +369,7 @@ fun MessageRow(
                                     }
                                 },
                                 update = { textView ->
-                                    val spanned = Html.fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT)
-                                    textView.text =
-                                        spanned.toString().trimEnd().let { trimmed ->
-                                            spanned.subSequence(0, trimmed.length)
-                                        }
+                                    textView.text = linkedText
                                     textView.setTextColor(textColorArgb)
                                     textView.setLinkTextColor(linkColorArgb)
                                 },

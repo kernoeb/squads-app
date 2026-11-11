@@ -1,5 +1,9 @@
 package com.squads.app.ui.mail
 
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 private const val GRAPH_HOST = "graph.microsoft.com"
@@ -20,3 +24,16 @@ internal fun isGraphImageUrl(url: String): Boolean {
 
 /** Returns true when a link tapped in an email body may be handed off to an external app. */
 internal fun isAllowedExternalLinkScheme(scheme: String?): Boolean = scheme?.lowercase() in EXTERNAL_LINK_SCHEMES
+
+/** Opens [uri] in an external app when its scheme is allowed. Does nothing otherwise. */
+internal fun openExternalLink(
+    context: Context,
+    uri: Uri,
+) {
+    if (!isAllowedExternalLinkScheme(uri.scheme)) return
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+    } catch (_: ActivityNotFoundException) {
+        // No app can handle this link; ignore.
+    }
+}
