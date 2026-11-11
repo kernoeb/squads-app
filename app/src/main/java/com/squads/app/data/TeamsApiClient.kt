@@ -451,21 +451,27 @@ class TeamsApiClient
                     ""
                 }
 
-            // Resolve unknown member names in parallel (up to 30)
-            val idsToResolve = collectUnresolvedMemberIds(rawChats, myUserId)
-            if (idsToResolve.isNotEmpty()) {
+            val chats =
                 coroutineScope {
-                    idsToResolve.take(30).map { async { resolveUserName(it) } }.awaitAll()
+                    val notes = async { notesChat(myUserId) }
+
+                    // Resolve unknown member names in parallel (up to 30)
+                    val idsToResolve = collectUnresolvedMemberIds(rawChats, myUserId)
+                    if (idsToResolve.isNotEmpty()) {
+                        idsToResolve.take(30).map { async { resolveUserName(it) } }.awaitAll()
+                    }
+
+                    // Fallback: resolve remaining via chat messages (cross-tenant users)
+                    val stillUnresolved = idsToResolve.filterTo(mutableSetOf()) { !userNameCache.containsKey(it) }
+                    if (stillUnresolved.isNotEmpty()) {
+                        resolveViaMessages(rawChats, stillUnresolved)
+                    }
+
+                    val parsed = parseChatList(rawChats, myUserId)
+                    // Prefer Notes as Teams lists it, if it ever does: that copy has the unread state.
+                    val listedNotes = parsed.firstOrNull { it.id == NOTES_CHAT_ID }
+                    listOf(listedNotes ?: notes.await()) + parsed.filter { it.id != NOTES_CHAT_ID }
                 }
-            }
-
-            // Fallback: resolve remaining via chat messages (cross-tenant users)
-            val stillUnresolved = idsToResolve.filterTo(mutableSetOf()) { !userNameCache.containsKey(it) }
-            if (stillUnresolved.isNotEmpty()) {
-                resolveViaMessages(rawChats, stillUnresolved)
-            }
-
-            val chats = parseChatList(rawChats, myUserId)
             return (chats to teams).also {
                 cachedUserDetails = it
                 cacheTimestamp = now
@@ -519,6 +525,34 @@ class TeamsApiClient
                 }
             }
             return ids
+        }
+
+        // users/me never lists your own Notes chat: Teams keeps it apart, under a fixed id.
+        // Every chat call works with that id, so only the row has to be built here.
+        private suspend fun notesChat(myUserId: String): ChatConversation {
+            val last =
+                try {
+                    getChatMessages(NOTES_CHAT_ID, pageSize = 5).lastOrNull()
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "Failed to load the latest note", e)
+                    null
+                }
+            return ChatConversation(
+                id = NOTES_CHAT_ID,
+                title = "Notes",
+                lastMessage =
+                    when {
+                        last == null -> ""
+                        last.content.isNotBlank() -> last.content
+                        last.imageUrls.isNotEmpty() -> "Sent a photo"
+                        else -> ""
+                    },
+                lastMessageTime = last?.timestamp ?: LocalDateTime.now(),
+                isOneOnOne = true,
+                memberCount = 1,
+                memberId = myUserId.ifEmpty { null },
+            )
         }
 
         // ─── Chat parsing ────────────────────────────────────────────
@@ -639,9 +673,12 @@ class TeamsApiClient
 
         // ─── Chat messages ───────────────────────────────────────────
 
-        suspend fun getChatMessages(threadId: String): List<ChatMessage> {
+        suspend fun getChatMessages(
+            threadId: String,
+            pageSize: Int = 200,
+        ): List<ChatMessage> {
             if (isDemoMode) return mockRepository.getMessages(threadId)
-            val url = "${regionConfig.chatsvcBase()}/conversations/$threadId/messages?pageSize=200"
+            val url = "${regionConfig.chatsvcBase()}/conversations/$threadId/messages?pageSize=$pageSize"
             val json = JSONObject(authenticatedGet(url, SCOPE_IC3))
             val messages = json.optJSONArray("messages") ?: return emptyList()
             val myUserId =
@@ -678,6 +715,7 @@ class TeamsApiClient
                         imageUrls = allImageUrls,
                         replyToName = parsed.replyToName,
                         replyToPreview = parsed.replyToPreview,
+                        clientMessageId = m.str("clientmessageid"),
                     )
                 }.sortedBy { it.timestamp }
         }
@@ -806,22 +844,24 @@ class TeamsApiClient
         suspend fun sendTextMessage(
             conversationId: String,
             text: String,
-        ) = sendMessageInternal(conversationId, text.escapeForTeamsHtml())
+            clientMessageId: String,
+        ) = sendMessageInternal(conversationId, text.escapeForTeamsHtml(), clientMessageId)
 
         suspend fun sendHtmlMessage(
             conversationId: String,
             html: String,
-        ) = sendMessageInternal(conversationId, html)
+            clientMessageId: String,
+        ) = sendMessageInternal(conversationId, html, clientMessageId)
 
         private suspend fun sendMessageInternal(
             conversationId: String,
             htmlContent: String,
+            messageId: String,
         ) {
             if (isDemoMode) return
             val token = getToken(SCOPE_IC3)
             val me = getMe()
             val now = Instant.now().toString()
-            val messageId = (Math.random() * Long.MAX_VALUE).toLong().toString()
 
             val body =
                 JSONObject().apply {

@@ -5,6 +5,8 @@ import java.time.format.DateTimeFormatter
 
 // ─── Chat models ────────────────────────────────────────────────
 
+const val NOTES_CHAT_ID = "48:notes"
+
 data class ChatConversation(
     val id: String,
     val title: String,
@@ -32,6 +34,9 @@ data class ChatMessage(
     val imageUrls: List<String> = emptyList(),
     val replyToName: String? = null,
     val replyToPreview: String? = null,
+    // The id this app sent with the message. Teams echoes it back, so a sent message
+    // can be matched to its local copy. Not stored in Room.
+    val clientMessageId: String = "",
 )
 
 data class Reaction(
