@@ -364,7 +364,7 @@ fun MessageRow(
                                     }
                                 },
                                 update = { textView ->
-                                    val spanned = Html.fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT)
+                                    val spanned = Html.fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT).withSafeLinks()
                                     textView.text =
                                         spanned.toString().trimEnd().let { trimmed ->
                                             spanned.subSequence(0, trimmed.length)

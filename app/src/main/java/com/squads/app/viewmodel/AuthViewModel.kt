@@ -14,6 +14,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -56,25 +57,39 @@ class AuthViewModel
             authManager.mockLogin()
         }
 
+        init {
+            // A session also ends without logout(), when the refresh token expires or is revoked.
+            // Wiping here also covers a process killed before that wipe finished.
+            viewModelScope.launch {
+                isAuthenticated.collectLatest { authenticated ->
+                    if (!authenticated && !_isLoggingOut.value) clearStoredData()
+                }
+            }
+        }
+
         fun logout() {
             viewModelScope.launch {
                 _isLoggingOut.value = true
                 try {
-                    withContext(Dispatchers.IO) {
-                        coroutineScope {
-                            val dbJob = async { database.clearAllTables() }
-                            val cacheJob = async { imageLoader.diskCache?.clear() }
-                            dbJob.await()
-                            cacheJob.await()
-                        }
-                    }
+                    clearStoredData()
                     apiClient.clearAll()
-                    imageLoader.memoryCache?.clear()
                     authManager.logout()
                 } finally {
                     _isLoggingOut.value = false
                 }
             }
+        }
+
+        private suspend fun clearStoredData() {
+            withContext(Dispatchers.IO) {
+                coroutineScope {
+                    val dbJob = async { database.clearAllTables() }
+                    val cacheJob = async { imageLoader.diskCache?.clear() }
+                    dbJob.await()
+                    cacheJob.await()
+                }
+            }
+            imageLoader.memoryCache?.clear()
         }
 
         fun resetState() = authManager.resetState()
