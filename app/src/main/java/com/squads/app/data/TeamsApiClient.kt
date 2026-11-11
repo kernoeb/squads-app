@@ -556,7 +556,7 @@ class TeamsApiClient
                 }.sortedByDescending { it.lastMessageTime }
 
         private fun formatLastMessage(msg: JSONObject): String {
-            val parsed = HtmlParser.parseMessage(msg.str("content"))
+            val parsed = HtmlParser.parseMessage(msg.contentHtml())
             if (parsed.text.isNotBlank()) return parsed.text
             if (parsed.imageUrls.isNotEmpty()) return "Sent a photo"
             return ""
@@ -656,7 +656,7 @@ class TeamsApiClient
                 .objects()
                 .filter { it.str("messagetype") in setOf("RichText/Html", "Text") }
                 .mapNotNull { m ->
-                    val rawHtml = m.str("content")
+                    val rawHtml = m.contentHtml()
                     val parsed = HtmlParser.parseMessage(rawHtml)
                     val fileImageUrls = parseFileAttachmentImages(m.optJSONObject("properties"))
                     val allImageUrls = parsed.imageUrls + fileImageUrls
@@ -769,8 +769,12 @@ class TeamsApiClient
                 }
             }
 
+        // Chat service payloads spell the key "messagetype", channel and chat-list ones "messageType".
+        private fun JSONObject.contentHtml(): String =
+            HtmlParser.messageHtml(str("content"), str("messageType").ifEmpty { str("messagetype") })
+
         private fun parseChannelMessage(m: JSONObject): ChannelMessage? {
-            val content = HtmlParser.parseMessage(m.str("content")).text
+            val content = HtmlParser.parseMessage(m.contentHtml()).text
             if (content.isBlank()) return null
             val sender = m.str("imdisplayname").ifEmpty { m.str("imDisplayName", "") }
             if (sender.isEmpty()) return null

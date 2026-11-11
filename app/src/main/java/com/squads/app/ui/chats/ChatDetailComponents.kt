@@ -59,6 +59,7 @@ import com.squads.app.data.ChatMessage
 import com.squads.app.data.ContentBlock
 import com.squads.app.data.HtmlParser
 import com.squads.app.data.toTimeString
+import com.squads.app.data.trimKeepingIndent
 import com.squads.app.ui.components.Avatar
 import com.squads.app.ui.components.ReactionChip
 import kotlinx.coroutines.launch
@@ -222,6 +223,8 @@ fun MessageRow(
     val textColorArgb = remember(textColor) { textColor.toArgb() }
     val linkColor = MaterialTheme.colorScheme.primary
     val linkColorArgb = remember(linkColor) { linkColor.toArgb() }
+    val quoteBarColorArgb = MaterialTheme.colorScheme.outlineVariant.toArgb()
+    val density = LocalDensity.current
     val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
 
     val context = LocalContext.current
@@ -323,18 +326,8 @@ fun MessageRow(
             }
 
             val contentBlocks =
-                remember(msg.contentHtml, msg.imageUrls) {
-                    val rawHtml = msg.contentHtml.ifEmpty { msg.content }
-                    if (rawHtml.contains('<') && rawHtml.contains('>')) {
-                        HtmlParser.parseContentBlocks(rawHtml, msg.imageUrls)
-                    } else if (msg.content.isNotBlank() || msg.imageUrls.isNotEmpty()) {
-                        buildList {
-                            if (msg.content.isNotBlank()) add(ContentBlock.Text(msg.content))
-                            msg.imageUrls.forEach { add(ContentBlock.Image(it)) }
-                        }
-                    } else {
-                        emptyList()
-                    }
+                remember(msg.contentHtml, msg.content, msg.imageUrls) {
+                    HtmlParser.messageBlocks(msg.contentHtml, msg.content, msg.imageUrls)
                 }
 
             contentBlocks.forEach { block ->
@@ -353,34 +346,32 @@ fun MessageRow(
                         )
                     }
                     is ContentBlock.Text -> {
-                        if (block.html.contains('<') && block.html.contains('>')) {
-                            val linkedText =
-                                remember(block.html) {
-                                    val spanned = Html.fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT).withSafeLinks()
-                                    spanned.subSequence(0, spanned.toString().trimEnd().length)
+                        val linkedText =
+                            remember(block.html, quoteBarColorArgb) {
+                                Html
+                                    .fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT)
+                                    .withSafeLinks()
+                                    .withQuoteBars(
+                                        color = quoteBarColorArgb,
+                                        barWidthPx = with(density) { 3.dp.toPx() },
+                                        gapPx = with(density) { 10.dp.roundToPx() },
+                                    ).trimKeepingIndent()
+                            }
+                        AndroidView(
+                            factory = { ctx ->
+                                TextView(ctx).apply {
+                                    setTextColor(textColorArgb)
+                                    setLinkTextColor(linkColorArgb)
+                                    textSize = 15f
+                                    movementMethod = LinkMovementMethod.getInstance()
                                 }
-                            AndroidView(
-                                factory = { ctx ->
-                                    TextView(ctx).apply {
-                                        setTextColor(textColorArgb)
-                                        setLinkTextColor(linkColorArgb)
-                                        textSize = 15f
-                                        movementMethod = LinkMovementMethod.getInstance()
-                                    }
-                                },
-                                update = { textView ->
-                                    textView.text = linkedText
-                                    textView.setTextColor(textColorArgb)
-                                    textView.setLinkTextColor(linkColorArgb)
-                                },
-                            )
-                        } else {
-                            Text(
-                                block.html,
-                                color = textColor,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
+                            },
+                            update = { textView ->
+                                textView.text = linkedText
+                                textView.setTextColor(textColorArgb)
+                                textView.setLinkTextColor(linkColorArgb)
+                            },
+                        )
                     }
                 }
             }
