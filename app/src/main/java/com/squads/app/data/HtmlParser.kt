@@ -14,15 +14,18 @@ private val EMOJI_IMG_DOMAINS =
         "emojipedia-us.s3.amazonaws.com",
     )
 
-private val ANY_WS = Regex("[\\s\u00A0]+")
+// Non-breaking spaces are kept inside a line: the sender may have typed them, and the
+// text must match what they typed for optimistic-send dedup.
+private val ANY_WS = Regex("\\s+")
 private const val LINE_BREAK = '\uE001'
-private val WS_AROUND_NEWLINE = Regex(" *\n *")
+private val WS_AROUND_NEWLINE = Regex("[ \u00A0]*\n[ \u00A0]*")
 private val EXCESS_NEWLINES = Regex("\n{3,}")
 
 // Leading spaces and runs of spaces, which HTML would otherwise collapse.
 private val KEPT_SPACE = Regex("(?<= ) |^ ")
 private val LINE_END = Regex("\r?\n")
 private val HTML_TAG = Regex("<[a-zA-Z/!]")
+private val FONT_SIZE = Regex("font-size\\s*:\\s*([0-9.]+)\\s*(px|pt)", RegexOption.IGNORE_CASE)
 
 // Only entities closed by ';'. Without it, "?a=1&times=2" in a URL would become "?a=1×=2".
 private val CLOSED_ENTITY = Regex("&(#[0-9]+|#[xX][0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);")
@@ -77,7 +80,7 @@ object HtmlParser {
         if (reply != null) {
             replyToName = reply.selectFirst("strong")?.text()
             replyToPreview = reply.selectFirst("[itemprop=preview]")?.text()
-            reply.remove()
+            doc.select(REPLY_SELECTOR).remove()
         }
 
         val imageUrls =
@@ -87,6 +90,7 @@ object HtmlParser {
                 .filter { it.startsWith("https://") }
 
         doc.select("img").remove()
+        inlineCellBlocks(doc)
         for (pre in doc.select("pre, codeblock")) {
             pre.codeTextNodes().forEach { it.text(it.wholeText.replace('\n', LINE_BREAK)) }
         }
@@ -135,8 +139,10 @@ object HtmlParser {
         doc.select(REPLY_SELECTOR).remove()
         // Only https images may be rendered; drop data:, file:, content:, http:, etc.
         doc.select("img").filterNot { isSafeImageUrl(it.attr("src")) }.forEach { it.remove() }
+        inlineCellBlocks(doc)
         keepCodeLayout(doc)
         flattenTables(doc)
+        keepFontSizes(doc)
 
         val blocks = mutableListOf<ContentBlock>()
         val images = mutableListOf<String>()
@@ -219,6 +225,14 @@ object HtmlParser {
         doc.select("code").tagName("tt")
     }
 
+    // Teams puts a <p> in each table cell. Left in place, it would put each cell on its own line.
+    private fun inlineCellBlocks(doc: Document) {
+        for (block in doc.select("td p, td div, th p, th div")) {
+            block.after(TextNode(" "))
+            block.unwrap()
+        }
+    }
+
     // Html.fromHtml does not know tables either: all cells would run together on one line.
     private fun flattenTables(doc: Document) {
         // Inner tables come later in document order, so reversing handles them first.
@@ -229,6 +243,28 @@ object HtmlParser {
                 }
             table.after("<div>$rows</div>")
             table.remove()
+        }
+    }
+
+    // Html.fromHtml ignores font-size in style, but knows <big> (x1.25) and <small> (x0.8).
+    // Sizes are relative to the 14px body text of Teams.
+    private fun keepFontSizes(doc: Document) {
+        for (el in doc.select("[style*=font-size]")) {
+            val match = FONT_SIZE.find(el.attr("style")) ?: continue
+            val value = match.groupValues[1].toFloatOrNull() ?: continue
+            val px = if (match.groupValues[2].equals("pt", ignoreCase = true)) value * 4 / 3 else value
+            val tags =
+                when {
+                    px >= 22 -> listOf("big", "big")
+                    px >= 16 -> listOf("big")
+                    px <= 12 -> listOf("small")
+                    else -> emptyList()
+                }
+            for (tag in tags) {
+                val wrapper = Element(tag)
+                el.childNodes().toList().forEach { wrapper.appendChild(it) }
+                el.appendChild(wrapper)
+            }
         }
     }
 

@@ -223,6 +223,8 @@ fun MessageRow(
     val textColorArgb = remember(textColor) { textColor.toArgb() }
     val linkColor = MaterialTheme.colorScheme.primary
     val linkColorArgb = remember(linkColor) { linkColor.toArgb() }
+    val quoteBarColorArgb = MaterialTheme.colorScheme.outlineVariant.toArgb()
+    val density = LocalDensity.current
     val subtitleColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
 
     val context = LocalContext.current
@@ -345,8 +347,15 @@ fun MessageRow(
                     }
                     is ContentBlock.Text -> {
                         val linkedText =
-                            remember(block.html) {
-                                Html.fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT).withSafeLinks().trimKeepingIndent()
+                            remember(block.html, quoteBarColorArgb) {
+                                Html
+                                    .fromHtml(block.html, Html.FROM_HTML_MODE_COMPACT)
+                                    .withSafeLinks()
+                                    .withQuoteBars(
+                                        color = quoteBarColorArgb,
+                                        barWidthPx = with(density) { 3.dp.toPx() },
+                                        gapPx = with(density) { 10.dp.roundToPx() },
+                                    ).trimKeepingIndent()
                             }
                         AndroidView(
                             factory = { ctx ->

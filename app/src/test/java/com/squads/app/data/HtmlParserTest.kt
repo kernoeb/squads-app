@@ -214,6 +214,18 @@ class HtmlParserTest {
     }
 
     @Test
+    fun `parseContentBlocks turns font sizes into big and small`() {
+        val html = HtmlParser.messageBlocks(squadsCliCard, "", emptyList()).joinToString { (it as ContentBlock.Text).html }
+        assertTrue("<big>Card title</big>" in html) { html }
+        assertTrue("<small>footer text</small>" in html) { html }
+
+        fun sized(style: String) = (HtmlParser.parseContentBlocks("<span style=\"$style\">x</span>").single() as ContentBlock.Text).html
+        assertEquals("<span style=\"font-size:14px\">x</span>", sized("font-size:14px"))
+        assertTrue("<big><big>x</big></big>" in sized("font-size:24px")) { sized("font-size:24px") }
+        assertTrue("<big>x</big>" in sized("font-size: 12pt")) { sized("font-size: 12pt") }
+    }
+
+    @Test
     fun `parseMessage ignores line breaks in the html source`() {
         assertEquals("a b\nc", HtmlParser.parseMessage("<p>a\r\nb</p>\r\n\n\r\n<p>c</p>").text)
     }
@@ -271,6 +283,27 @@ class HtmlParserTest {
     fun `parseMessage separates table cells and rows`() {
         val html = "<table><tr><td>Ann</td><td>30</td></tr><tr><td>Bob</td><td>25</td></tr></table>"
         assertEquals("Ann 30\nBob 25", HtmlParser.parseMessage(html).text)
+    }
+
+    @Test
+    fun `table cells with paragraphs stay on one row`() {
+        val html = "<table><tbody><tr><td><p>Ann</p></td><td><p>30</p></td></tr></tbody></table>"
+        assertEquals("Ann 30", HtmlParser.parseMessage(html).text)
+        val text = (HtmlParser.parseContentBlocks(html).single() as ContentBlock.Text).html
+        assertTrue("<p>" !in text && Regex("Ann\\s*\\|\\s*30").containsMatchIn(text)) { text }
+    }
+
+    @Test
+    fun `parseMessage keeps a non-breaking space the sender typed`() {
+        assertEquals("Bonjour !", HtmlParser.parseMessage("<p>Bonjour&nbsp;!</p>").text)
+    }
+
+    @Test
+    fun `parseMessage drops every reply quote`() {
+        val reply = """<blockquote itemtype="http://schema.skype.com/Reply"><strong>Bob</strong><p itemprop="preview">Hi</p></blockquote>"""
+        val result = HtmlParser.parseMessage("$reply$reply<p>Answer</p>")
+        assertEquals("Answer", result.text)
+        assertEquals("Bob", result.replyToName)
     }
 
     @Test
